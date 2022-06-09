@@ -1,0 +1,68 @@
+---
+title: "Lecture: 06/08"
+output: html_document
+date: '2022-06-08'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(Lahman)
+```
+
+```{r}
+Batting <- as_tibble(Batting)
+
+year_batting_summary = Batting %>%
+  filter(lgID %in% c("AL", "NL")) %>%
+  group_by(yearID) %>%
+  summarise_at(vars(H, HR, SO, BB, AB), #use summarise_at to do same summarise function across multiple variables quickly
+               sum, na.rm = T) %>%
+  mutate(batting_avg = H/AB)
+
+ggplot(year_batting_summary, aes(x = yearID, y = H)) +
+  geom_point(col = "steelblue", alpha = 0.45) +
+  geom_line(col = "steelblue") +
+  labs(x = "", y = "Hits", title = "MLB Hits Over Time")
+
+ggplot(year_batting_summary, aes(x = yearID, y = SO)) +
+  geom_point(col = "steelblue", alpha = 0.45) +
+  geom_line(col = "steelblue") +
+  labs(x = "", y = "Strike Outs", title = "MLB Strike Outs Over Time")
+
+ggplot(year_batting_summary, aes(x = yearID, y = BB)) +
+  geom_point(col = "steelblue", alpha = 0.45) +
+  geom_line(col = "steelblue") +
+  labs(x = "", y = "Walks", title = "MLB Walks Over Time") +
+  scale_x_continuous(limits = c(2000, 2021)) +
+  scale_y_continuous(breaks = seq(0, 20000, by = 2000))
+```
+
+```{r}
+year_batting_summary %>%
+  select(yearID:BB) %>%
+  pivot_longer(H:BB, 
+               names_to = "stat",
+               values_to = "value")
+```
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,175 @@
+---
+title: "0609-Lecture"
+output: html_document
+date: '2022-06-09'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+ohtani_batted_balls <- read_csv("http://www.stat.cmu.edu/cmsac/sure/2022/materials/data/sports/xy_examples/ohtani_2021_batted_balls.csv")
+head(ohtani_batted_balls)
+```
+
+```{r}
+#marginal distribution
+ohtani_batted_balls %>%
+  ggplot(aes(x = batted_ball_type)) +
+  geom_bar() +
+  theme_bw()
+```
+
+```{r}
+#Probability mass function (pmf): gives the probability that a discrete random variable is exactly equal to some value.
+ohtani_batted_balls %>%
+  ggplot(aes(x = batted_ball_type)) +
+  geom_bar(aes(y = after_stat(count) / sum(after_stat(count)))) + 
+  theme_bw()
+
+ohtani_batted_balls %>%
+  group_by(batted_ball_type) %>%
+  summarize(count = n()) %>% 
+  ungroup() %>% 
+  mutate(total = sum(count),
+         prop = count / total) %>% 
+  ggplot(aes(x = batted_ball_type)) +
+  geom_col(aes(y = prop)) + 
+  theme_bw()
+```
+
+```{r}
+#Add confidence int
+ohtani_batted_balls %>%
+  group_by(batted_ball_type) %>% 
+  summarize(count = n()) %>% 
+  ungroup() %>% 
+  mutate(total = sum(count),
+         prop = count / total,
+         se = sqrt(prop * (1 - prop) / total),  
+         lower = prop - 2 * se,  
+         upper = prop + 2 * se) %>% 
+  ggplot(aes(x = batted_ball_type)) +
+  geom_bar(aes(y = prop),
+           stat = "identity") + 
+  geom_errorbar(aes(ymin = lower, 
+                    ymax = upper), 
+                color = "red") + 
+  theme_bw()
+```
+
+```{r}
+#reorder by col and value: fct_reorder
+ohtani_batted_balls %>%
+  group_by(batted_ball_type) %>% 
+  summarize(count = n()) %>% 
+  ungroup() %>% 
+  mutate(total = sum(count),
+         prop = count / total,
+         se = sqrt(prop * (1 - prop) / total),  
+         lower = prop - 2 * se, 
+         upper = prop + 2 * se,
+         batted_ball_type = #<<
+           fct_reorder(batted_ball_type, #<<
+                       prop)) %>% #<<
+  ggplot(aes(x = batted_ball_type)) +
+  geom_bar(aes(y = prop),
+           stat = "identity") + 
+  geom_errorbar(aes(ymin = lower, 
+                    ymax = upper),
+                color = "red") + 
+  theme_bw()
+```
+
+```{r}
+summary(ohtani_batted_balls$exit_velocity)
+sd(ohtani_batted_balls$exit_velocity, na.rm = T)
+```
+
+```{r}
+#boxplot: (pro: useful side by side, con: doesn't display full dist shape)
+ohtani_batted_balls %>%
+  ggplot(aes(y = exit_velocity)) + #<<
+  geom_boxplot(aes(x = "")) + #<<
+  theme_bw() +
+  coord_flip()
+```
+
+```{r}
+#hist: pro: show shape, have to select bin and binwidth
+ohtani_batted_balls %>%
+  ggplot(aes(x = exit_velocity)) + #<<
+  geom_histogram() + #<<
+  theme_bw() 
+```
+
+```{r}
+#beeswarm plot
+library(ggbeeswarm)
+ohtani_batted_balls %>%
+  ggplot(aes(y = exit_velocity)) + 
+  geom_beeswarm(aes(x = ""), #<<
+                cex = 3) + #<<
+  theme_bw() +
+  coord_flip()
+```
+
+```{r}
+#violin plot
+ohtani_batted_balls %>%
+  ggplot(aes(y = exit_velocity)) + 
+  geom_violin(aes(x = "")) + #<<
+  theme_bw() +
+  coord_flip()
+```
+
+```{r}
+#ECDF
+ohtani_batted_balls %>%
+  ggplot(aes(x = exit_velocity)) + 
+  stat_ecdf() + #<<
+  theme_bw()
+```
+
+```{r}
+#rug plot
+ohtani_batted_balls %>%
+  ggplot(aes(x = exit_velocity)) + #<<
+  geom_rug(alpha = 0.7) + #<<
+  theme_bw()
+```
+
+```{r}
+#rug overlay on hist
+ohtani_batted_balls %>%
+  ggplot(aes(x = exit_velocity)) + #<<
+  geom_rug(alpha = 0.7) + #<<
+  geom_histogram() + #<<
+  theme_bw()
+```
+
+```{r}
+#rug overlay on ecdf
+ohtani_batted_balls %>%
+  ggplot(aes(x = exit_velocity)) + #<<
+  geom_rug(alpha = 0.7) + #<<
+  stat_ecdf() + #<<
+  theme_bw()
+```
+
+```{r}
+#rug overlay on scatterplot
+ohtani_batted_balls %>%
+  ggplot(aes(x = exit_velocity, #<<
+             y = launch_angle)) + #<<
+  geom_point() + #<<
+  geom_rug(alpha = 0.4) + #<<
+  theme_bw()
+```
+
