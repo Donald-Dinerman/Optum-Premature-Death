@@ -1,0 +1,272 @@
+---
+title: "0610-Lecture"
+output: html_document
+date: '2022-06-10'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Visualizing 2D categorical and continuous by categorical
+
+```{r}
+library(tidyverse)
+
+ohtani_batted_balls <- read_csv("http://www.stat.cmu.edu/cmsac/sure/2022/materials/data/sports/xy_examples/ohtani_2021_batted_balls.csv")
+head(ohtani_batted_balls)
+```
+
+```{r}
+#count table
+table(ohtani_batted_balls$pitch_type)
+```
+
+```{r}
+#simplified counts
+ohtani_batted_balls <- ohtani_batted_balls %>%
+  filter(pitch_type != "null") %>% 
+  mutate(pitch_type = fct_recode(pitch_type, "Changeup" = "CH", "Breaking ball" = "CU", 
+                      "Fastball" = "FC", "Fastball" = "FF", "Fastball" = "FS", 
+                      "Breaking ball" = "KC",  "Fastball" = "SI",  "Breaking ball" = "SL"))
+table(ohtani_batted_balls$pitch_type)
+```
+
+## Inference for categorical data
+
+The main test used for categorical data is the __chi-square test__:
+
+Chi-squared test is used to determine whether there is a statistically significant difference between the expected frequencies and the observed frequencies in one or more categories of a contingency table
+
+  - __Null hypothesis__: $H_0: p_1 = p_2 = \cdots = p_K$ and we compute the __test statistic__: 
+
+$$
+\chi^2 = \sum_{j=1}^K \frac{(O_j - E_j)^2}{E_j}
+$$
+
+  - $O_j$: observed counts in category $j$
+
+  - $E_j$: expected counts under $H_0$ (i.e., $\frac{n}{K}$ or each category is equally likely to occur)
+
+--
+
+```{r}
+#chi square proportion test
+table(ohtani_batted_balls$pitch_type) %>%
+  chisq.test()
+```
+
+## Statistical inference in general
+
+Calc p-values like this:
+
+- Choose a test statistic.
+
+- Compute the test statistic in your dataset.
+
+- Is test statistic "unusual" compared to what I would expect under $H_0$?
+
+- Compare $p$-value to __target error rate__ $\alpha$ (typically referred to as target level $\alpha$ )
+
+- Typically choose $\alpha = 0.05$ 
+
+## 2D Categorical visualization
+
+```{r}
+#stacked bar chart
+ohtani_batted_balls %>%
+  ggplot(aes(x = batted_ball_type,
+             fill = pitch_type)) + 
+  geom_bar() + 
+  theme_bw()
+```
+
+Side-by-Side__: a bar chart of bar charts
+
+```{r}
+ohtani_batted_balls %>%
+  ggplot(aes(x = batted_ball_type,
+             fill = pitch_type)) + 
+  geom_bar(position = "dodge") + 
+  theme_bw()
+```
+
+Stacked bar charts emphasize __marginal__ distribution of `x` variable, 
+  - e.g. $P$ (`batted_ball_type` = fly_ball)
+
+- Side-by-side bar charts are useful to show the __conditional__ distribution of `fill` variable given `x`,
+  - e.g. $P$ (`pitch_type` = Fastball | `batted_ball_type` = fly_ball)
+  
+## Contingency tables
+
+Can provide `table()` with more than one variable
+
+```{r}
+#contingency table
+table("Pitch type" = ohtani_batted_balls$pitch_type, 
+      "Batted ball type" = ohtani_batted_balls$batted_ball_type)
+```
+
+## Review of joint, marginal, and conditional probabilities
+
+__Joint distribution__: frequency of intersection, $P(X = x, Y = y)$
+
+```{r}
+#proportions table
+table(ohtani_batted_balls$pitch_type, ohtani_batted_balls$batted_ball_type) %>%
+  proportions()
+```
+
+__Marginal distribution__: row / column sums, e.g. $P(X = \text{popup}) = \sum_{y \in \text{pitch types}} P(X = \text{popup}, Y = y)$
+
+__Conditional distribution__: probability event $X$ __given__ second event $Y$, 
+- e.g. $P(X = \text{popup} | Y = \text{Fastball}) = \frac{P(X = \text{popup}, Y = \text{Fastball})}{P(Y = \text{Fastball})}$
+
+## Pivot Wider Example
+
+```{r}
+library(gt)
+
+ohtani_batted_balls %>%
+  group_by(batted_ball_type, pitch_type) %>%
+  summarize(joint_prob = n() / nrow(ohtani_batted_balls)) %>%
+  pivot_wider(names_from = batted_ball_type, values_from = joint_prob,
+              values_fill = 0) %>%
+  gt()
+```
+
+## Inference for 2D categorical data
+
+We AGAIN use the __chi-square test__:
+
+- __Null hypothesis__: $H_0$: Variables $A$ and $B$ are independent, 
+
+  - e.g., `batted_ball_type` and `pitch_type` are independent of each other, no relationship
+
+- And now we compute the __test statistic__ as: 
+
+$$\chi^2 = \sum_i^{k_1} \sum_j^{k_2} \frac{(O_{ij} - E_{ij})^2}{E_{ij}}$$
+
+- $O_{ij}$: observed counts in contingency table $j$
+
+- $E_{ij}$: expected counts under $H_0$ where __under the null__:
+
+$$
+\begin{aligned}
+E_{ij} &= n \cdot P(A = a_i, B = b_j) \\
+&= n \cdot P(A = a_i) P(B = b_j) \\
+&= n \cdot \left( \frac{n_{i \cdot}}{n} \right) \left( \frac{ n_{\cdot j}}{n} \right)
+\end{aligned}
+$$
+
+```{r}
+table(ohtani_batted_balls$pitch_type, ohtani_batted_balls$batted_ball_type) %>%
+  chisq.test() #simulate.p.value = T #monte carlo simulation
+```
+
+## Can we visualize independence?
+
+Two variables are __independent__ if knowing the level of one tells us nothing about the other
+- i.e.  $P(X = x | Y = y) = P(X = x)$, and that $P(X = x, Y = y) = P(X = x) \times P(Y = y)$
+
+Create a __mosaic__ plot using __base `R`__
+
+```{r}
+mosaicplot(table(ohtani_batted_balls$pitch_type, ohtani_batted_balls$batted_ball_type),
+           main = "Relationship between batted ball and pitch type?")
+```
+
+- spine chart _of spine charts_
+
+- width $\propto$ marginal distribution of `pitch_type`
+
+- height $\propto$ conditional distribution of `batted_ball_type` | `pitch_type`
+
+- area $\propto$ joint distribution
+
+## Shade by _Pearson residuals_
+
+- The __test statistic__ is: 
+
+$$\chi^2 = \sum_i^{k_1} \sum_j^{k_2} \frac{(O_{ij} - E_{ij})^2}{E_{ij}}$$
+
+- Define the _Pearson residuals_ as:
+
+$$r_{ij} = \frac{O_{ij} - E_{ij}}{\sqrt{E_{ij}}}$$
+
+- Sidenote: In general, Pearson residuals are $\frac{\text{residuals}}{\sqrt{\text{variance}}}$
+
+- $r_{ij} \approx 0 \rightarrow$ observed counts are close to expected counts
+
+- $|r_{ij}| > 2 \rightarrow$ "significant" at level $\alpha = 0.05$.
+
+- Very positive $r_{ij} \rightarrow$ more than expected, while very negative $r_{ij} \rightarrow$ fewer than expected
+
+- Mosaic plots: Color by Pearson residuals to tell us which combos are much bigger/smaller than expected.
+
+```{r}
+mosaicplot(table(ohtani_batted_balls$pitch_type, ohtani_batted_balls$batted_ball_type),
+           shade = TRUE, main = "Relationship between batted ball and pitch type?") #<<
+```
+
+## Continuous by categorical: side-by-side and color
+
+```{r}
+#violin w boxplot
+ohtani_batted_balls %>%
+  ggplot(aes(x = pitch_type, #<<
+             y = exit_velocity)) +
+  geom_violin() +
+  geom_boxplot(width = .2) +
+  theme_bw()
+```
+
+```{r}
+#colored ecdf
+ohtani_batted_balls %>%
+  ggplot(aes(x = exit_velocity,
+             color = pitch_type)) + #<<
+  stat_ecdf() + 
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#colored hist w alpha (see-through)
+ohtani_batted_balls %>%
+  ggplot(aes(x = exit_velocity,
+             fill = pitch_type)) + 
+  geom_histogram(alpha = .25, position = "identity") +
+  theme_bw() + 
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#Facet
+ohtani_batted_balls %>%
+  ggplot(aes(x = exit_velocity)) + 
+  geom_histogram() +
+  theme_bw() +
+  facet_wrap(~ pitch_type, ncol = 2)
+```
+
+```{r}
+#facet w marginal
+ohtani_batted_balls %>%
+  ggplot(aes(x = exit_velocity)) + 
+  geom_histogram() +
+  theme_bw() +
+  facet_grid(pitch_type ~., margins = T)
+```
+
+```{r}
+ohtani_batted_balls %>%
+  ggplot(aes(x = pitch_type,
+             fill = batted_ball_type)) + 
+  geom_bar() + theme_bw() +
+  facet_wrap(~ outcome, ncol = 5) +
+  theme(legend.position = "bottom")
+```
+
+
+

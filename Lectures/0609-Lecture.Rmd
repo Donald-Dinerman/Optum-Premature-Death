@@ -8,6 +8,7 @@ date: '2022-06-09'
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+#Visualizing 1D categorical and continuous variables
 
 ```{r}
 library(tidyverse)
