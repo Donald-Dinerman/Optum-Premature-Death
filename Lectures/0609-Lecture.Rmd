@@ -9,7 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 #Visualizing 1D categorical and continuous variables
-
+ 
 ```{r}
 library(tidyverse)
 ```

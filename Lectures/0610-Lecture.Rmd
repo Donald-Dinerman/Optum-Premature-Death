@@ -206,7 +206,7 @@ $$r_{ij} = \frac{O_{ij} - E_{ij}}{\sqrt{E_{ij}}}$$
 
 ```{r}
 mosaicplot(table(ohtani_batted_balls$pitch_type, ohtani_batted_balls$batted_ball_type),
-           shade = TRUE, main = "Relationship between batted ball and pitch type?") #<<
+           shade = TRUE, main = "Relationship between batted ball and pitch type?")
 ```
 
 ## Continuous by categorical: side-by-side and color
