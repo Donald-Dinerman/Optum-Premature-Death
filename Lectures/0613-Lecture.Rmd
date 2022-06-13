@@ -1,0 +1,364 @@
+---
+title: "0613-Lecture"
+output: html_document
+date: '2022-06-13'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Density Estimation
+
+Created dataset of shot attempts by the Stephen Curry in 2021-2022 season using [`nbastatR`](http://asbcllc.com/nbastatR/)
+
+```{r, warning = FALSE, message = FALSE}
+library(tidyverse)
+
+curry_shots <- 
+  read_csv("http://www.stat.cmu.edu/cmsac/sure/2022/materials/data/sports/xy_examples/curry_2022_shots.csv")
+head(curry_shots)
+```
+
+- each row / observation is a shot attempt by Curry in the 2021 season
+- __Categorical__ / qualitative variables: `is_shot_made`, `fg_type`, `shot_zone`, `shot_type`
+- __Continuous__ / quantitative variables: `shot_x`, `shot_y`, `shot_distance`
+
+## Histograms
+
+```{r}
+#Histogram
+fd_bw <- 2 * IQR(curry_shots$shot_distance) / length(curry_shots$shot_distance)^(1/3) #set binwidth
+
+curry_shots %>%
+  ggplot(aes(x = shot_distance)) +
+  geom_histogram(col = "black", fill = "steelblue", binwidth = fd_bw) +
+  theme_bw()
+```
+
+__Small__ `binwidth`  $\rightarrow$ _"undersmooth"_ / spiky
+
+```{r}
+curry_shots %>%
+  ggplot(aes(x = shot_distance)) +
+  geom_histogram(col = "black", fill = "steelblue", binwidth = 1) + #<<
+  theme_bw()
+```
+
+__Large__ `binwidth`  $\rightarrow$ _"oversmooth"_ / flat
+
+```{r}
+curry_shots %>%
+  ggplot(aes(x = shot_distance)) +
+  geom_histogram(col = "black", fill = "steelblue", binwidth = 25) +
+  theme_bw()
+```
+
+By default the bins are centered on the integers...
+
+- left-closed, right-open intervals 
+- starting at -0.5 to 0.5, 0.5 to 1.5, ...
+
+__Specify center of one bin__ (e.g. 0.5)
+
+- Reminder to use `closed = "left"`...
+
+```{r shot-dist-hist-shift, fig.height=4}
+curry_shots %>%
+  ggplot(aes(x = shot_distance)) +
+  geom_histogram(col = "black", fill = "steelblue", 
+                 binwidth = 1, center = 0.5, #center is 0.5*binwidth
+                 closed = "left") +
+  theme_bw()
+```
+
+How do histograms relate to the PDF and CDF?
+
+__Remember__: we use the __probability density function (PDF)__ to provide a __relative likelihood__
+
+- PDF is the __derivative__ of the cumulative distribution function (CDF)
+
+- Histograms approximate the PDF with bins, and __points are equally likely within a bin__
+
+```{r}
+curry_shots %>%
+  ggplot(aes(x = shot_distance)) + 
+  geom_histogram(col = "black", fill = "steelblue",
+                 binwidth = 1, center = 0.5, 
+                 closed = "left") +
+  geom_rug(alpha = 0.3) +
+  theme_bw() +
+  labs(x = "Shot distance (in feet)",
+       y = "Number of shot attempts")
+```
+
+```{r}
+curry_shots %>%
+  ggplot(aes(x = shot_distance)) + 
+  stat_ecdf() +
+  geom_rug(alpha = 0.3) +
+  theme_bw() +
+  labs(x = "Shot distance (in feet)",
+       y = "Proportion of Curry shot attempts")
+```
+
+__What can say about the relative likelihood of data we have not observed?__
+
+- we want __non-zero density__ between our observations, e.g., just beyond 20 feet
+
+## Kernel density estimation (KDE)
+
+__Goal__: estimate the PDF $f(x)$ for all possible values (assuming it is continuous / smooth)
+
+$$
+\text{Kernel density estimate: } \hat{f}(x) = \frac{1}{n} \sum_{i=1}^n \frac{1}{h} K_h(x - x_i)
+$$
+
+- $n =$ sample size, $x =$ new point to estimate $f(x)$ (does NOT have to be in dataset!)
+
+- $h =$ __bandwidth__, analogous to histogram binwidth, ensures $\hat{f}(x)$ integrates to 1
+
+- $x_i =$ $i$th observation in dataset
+
+- $K_h(x - x_i)$ is the __Kernel__ function, creates __weight__ given distance of $i$th observation from new point 
+  - as $|x - x_i| \rightarrow \infty$ then $K_h(x - x_i) \rightarrow 0$, i.e. further apart $i$th row is from $x$, smaller the weight
+  
+  - as __bandwidth__ $h \uparrow$ weights are more evenly spread out (as $h \downarrow$ more concentrated around $x$) 
+
+  - typically use [__Gaussian__ / Normal](https://en.wikipedia.org/wiki/Normal_distribution) kernel: $\propto e^{-(x - x_i)^2 / 2h^2}$
+  
+  - each kernel is centered about each data point, then kernels are added up to create the KDE
+  
+  - Big h means wide (smooth) kernel, small h means tall (sharp) kernel
+  
+  - $K_h(x - x_i)$ is large when $x_i$ is close to $x$
+
+What about the bandwidth? See [Chapter 14 for more...]**(https://www.stat.cmu.edu/~cshalizi/ADAfaEPoV/)**
+
+  Use Gaussian reference rule (rule-of-thumb) $\approx 1.06 \cdot \sigma \cdot n^{-1/5}$, where $\sigma$ is the observed standard deviation
+
+  Modify the bandwidth using the `adjust` argument - __value to multiply default bandwidth by__
+
+```{r}
+curry_shots %>%
+  ggplot(aes(x = shot_distance)) + 
+  geom_density(adjust = 0.5) + #default adjust is determined by the Gaussian rule of thumb
+  geom_rug(alpha = 0.3) + 
+  theme_bw()
+```
+
+```{r}
+curry_shots %>%
+  ggplot(aes(x = shot_distance)) + 
+  geom_density(adjust = 2) +
+  geom_rug(alpha = 0.3) + 
+  theme_bw()
+```
+
+Use density curves and ECDFs together
+
+```{r}
+library(patchwork)
+
+curry_shot_dens <- curry_shots %>%
+  ggplot(aes(x = shot_distance)) + 
+  geom_density() +
+  geom_rug(alpha = 0.3) +
+  theme_bw() +
+  labs(x = "Shot distance (in feet)",
+       y = "Number of shot attempts")
+
+curry_shot_ecdf <- curry_shots %>%
+  ggplot(aes(x = shot_distance)) + 
+  stat_ecdf() +
+  geom_rug(alpha = 0.3) +
+  theme_bw() +
+  labs(x = "Shot distance (in feet)",
+       y = "Proportion of Curry shot attempts")
+
+curry_shot_dens + curry_shot_ecdf 
+```
+
+```{r}
+curry_shot_dens_made <- curry_shots %>%
+  ggplot(aes(x = shot_distance, 
+             color = is_shot_made)) + 
+  geom_density() +
+  geom_rug(alpha = 0.3) +
+  theme_bw() +
+  labs(x = "Shot distance (in feet)",
+       y = "Number of shot attempts")
+
+curry_shot_ecdf_made <- curry_shots %>%
+  ggplot(aes(x = shot_distance,
+             color = is_shot_made)) + 
+  stat_ecdf() +
+  geom_rug(alpha = 0.3) +
+  theme_bw() +
+  labs(x = "Shot distance (in feet)",
+       y = "Proportion of Curry shot attempts")
+
+curry_shot_dens_made + curry_shot_ecdf_made + plot_layout(guides = 'collect')
+```
+
+## Alternative to violins - ridge plots
+
+Useful to display conditional distributions across many levels
+
+```{r}
+library(ggridges)
+
+curry_shots %>%
+  ggplot(aes(x = shot_distance,
+             y = shot_type)) + #<< 
+  geom_density_ridges(rel_min_height = 0.01) + #<<
+  theme_bw()
+```
+
+What about for 2D? (two continuous variables)
+
+We can visualize all of the shot locations: (`shot_x`, `shot_y`)
+
+```{r}
+curry_shots %>%
+  # Modify the shot coordinates
+  mutate(shot_x = -shot_x / 10,
+         shot_y = shot_y / 10) %>%
+  ggplot(aes(x = shot_x, y = shot_y)) +
+  geom_point(alpha = 0.3) +
+  theme_bw()
+```
+
+## Create contours of 2D kernel density estimate (KDE)
+
+- We make 2D KDE __contour__ plots using [`geom_density2d()`](https://ggplot2.tidyverse.org/reference/geom_density_2d.html)
+
+```{r}
+curry_shots %>%
+  # Modify the shot coordinates
+  mutate(shot_x = -shot_x / 10,
+         shot_y = shot_y / 10) %>%
+  filter(shot_y <= 30) %>%
+  ggplot(aes(x = shot_x, y = shot_y)) + 
+  geom_point(alpha = 0.3) + 
+  geom_density2d() +
+  theme_bw() + 
+  theme(legend.position = "bottom") +
+  coord_fixed() 
+```
+
+- Extend KDE for joint density estimates in 2D (see [section 14.4.2 for details](https://www.stat.cmu.edu/~cshalizi/ADAfaEPoV/))
+
+- `coord_fixed()` forced a fixed ratio
+
+- Can use `adjust` to modify the multivariate bandwidth
+
+```{r}
+curry_shots %>%
+  # Modify the shot coordinates
+  mutate(shot_x = -shot_x / 10,
+         shot_y = shot_y / 10) %>%
+  # Remove the outlier shots:
+  filter(shot_y <= 30) %>%
+  ggplot(aes(x = shot_x, y = shot_y)) + 
+  geom_point(alpha = 0.3) + 
+  geom_density2d(adjust = 0.3) +
+  theme_bw() + 
+  theme(legend.position = "bottom") +
+  coord_fixed() #makes one unit on y equal to one unit on x
+```
+
+## Heatmaps
+
+- We make 2D KDE __heatmap__ plots using [`stat_density_2d()`](https://ggplot2.tidyverse.org/reference/geom_density_2d.html)
+and the `..` or [`after_stat()`](https://ggplot2.tidyverse.org/reference/aes_eval.html) function
+
+- Can use white to a color to visualize density in heatmaps
+
+```{r}
+curry_shots %>%
+  mutate(shot_x = -shot_x / 10,
+         shot_y = shot_y / 10) %>%
+  filter(shot_y <= 30) %>%
+  ggplot(aes(x = shot_x, y = shot_y)) + 
+  stat_density2d(h = 0.5, bins = 60,
+                 aes(fill = after_stat(level)),
+                 geom = "polygon") +
+  scale_fill_gradient(low = "darkblue", 
+                      high = "darkorange") +
+  theme_bw() + 
+  theme(legend.position = "right") +
+  coord_fixed()
+```
+
+## Best alternative? Hexagonal binning
+
+- We make __hexagonal heatmap__ plots using [`geom_hex()`](https://ggplot2.tidyverse.org/reference/geom_hex.html)
+
+- Need to have the [`hexbin`](https://cran.r-project.org/web/packages/hexbin/index.html) package installed
+
+```{r shot-loc-points-hex, eval = FALSE}
+curry_shots %>%
+  mutate(shot_x = -shot_x / 10,
+         shot_y = shot_y / 10) %>%
+  filter(shot_y <= 30) %>%
+  ggplot(aes(x = shot_x, y = shot_y)) + 
+  geom_hex(binwidth = c(1, 1)) +
+  scale_fill_gradient(low = "darkblue", 
+                      high = "darkorange") + 
+  theme_bw() + 
+  theme(legend.position = "right") +
+  coord_fixed()
+```
+
+- Can specify `binwidth` in both directions
+- Avoids limitations from smoothing
+
+## What about his shooting efficiency?
+
+- Can compute a function of another variable inside hexagons with [`stat_summary_hex()`](https://ggplot2.tidyverse.org/reference/stat_summary_2d.html)
+
+- Check out [BallR](https://github.com/toddwschneider/ballr) for code examples to make shot charts and drawing courts
+
+
+.pull-left[
+```{r shot-loc-hex-make, eval = FALSE}
+curry_shots %>%
+  mutate(shot_x = -shot_x / 10,
+         shot_y = shot_y / 10) %>%
+  filter(shot_y <= 30) %>%
+  ggplot(aes(x = shot_x, y = shot_y, 
+             z = is_shot_made,
+             group = -1)) +
+  stat_summary_hex(binwidth = c(2, 2),
+                   color = "black", 
+                   fun = mean) + 
+  scale_fill_gradient(low = "darkblue", 
+                      high = "darkorange") + 
+  theme_bw() + 
+  theme(legend.position = "right") +
+  coord_fixed()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
