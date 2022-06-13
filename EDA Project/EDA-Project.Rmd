@@ -1,0 +1,177 @@
+---
+title: "EDA Project"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview
+
+This project will begin on Monday June 13th, and conclude with a 10-15 minute presentation on Friday, June 24th (either during the morning session from 10:30 to 12 PM or in the afternoon from 1:30 to 3 PM). The goal of this project is to practice understanding the structure of a dataset, and to practice generating and evaluating hypotheses using fundamental EDA and data visualization techniques.
+
+# Deliverables
+
+Your team is expected to produce R Markdown slides (an example template will be provided shortly) to accompany your 10-15 minute presentation with the following information:
+
+1. Explanation of the data structure of the dataset
+
+2. Three hypotheses you are interested in exploring
+
+3. Three data visualizations exploring the hypotheses, at least two of which must be multivariate. Each visualization must be in a different format from the other two, and you must have at least one categorical and one continuous visualization
+
+4. One clustering example
+
+5. Conclusions reached for the hypotheses based on your EDA and data visualizations
+
+# Timeline
+
+There will be two submission deadlines:
+
+Friday, June 17th @ 5:00 PM EST - Each student will push their individual code for the project thus far to their GitHub accounts for review. We will then provide feedback on the code submitted.
+
+Thursday, June 23rd @ 11:59 PM EST - Slides and full code must be completed and ready for presentation. Send your slides to Prof Yurko’s email (ryurko@andrew.cmu.edu). All code, visualizations, and presentations must be made in R. Take advantage of examples from lecture and the presentation template, but also feel free to explore material online that may be relevant!
+
+# Data
+
+Your team is assigned the Maternal Health Care Disparities data. The Centers for Disease Control and Prevention WONDER program helps track information related to birth records, parent demographics and risk factors, pregnancy history and pre-natal care characteristics. This data source could help identify combinations of risk factors more commonly associated with adverse outcomes which could then be utilized to develop better pre-natal care programs or targeted interventions to reduce disparities and improve patient outcomes across all ethnicities.
+
+The data set is a sample of data from the CDC Wonder database for available birth records from 2019 that has been aggregated by state and a few conditions: (the number of prior births now deceased and whether or not the mother smoked or had pre-pregnancy diabetes or pre-pregnancy hypertension). So for example, the first row corresponds to the set of births that were born to women in Alabama who had no prior births deceased, smoked, and had both diabetes and hypertension pre-pregnancy. There were 12 such births, and the following variables (e.g. mother’s age) describe the mothers/infants in that set of 12.
+
+State: State
+PriorBirthsNowDeceased: The number of prior births now deceased
+TobaccoUse: Whether or not the mother uses tobacco products
+PrePregnancyDiabetes: Whether or not the mother had diabetes prior to becoming pregnant
+PrePregnancyHypertension: Whether or not the mother had hypertension prior to becoming pregnant
+Births: The number of births in that state with a defined combination of the previous four conditions (PriorBirthsNowDeceased, TobaccoUse, PrePregnancyDiabetes, PrePregnancyHypertension)
+AverageMotherAge: The average mother’s age for the corresponding group of births
+AverageBirthWeight: The average birth weight in grams for the corresponding group of births
+AveragePrePregnancyBMI: The average pre-pregnancy BMI of the mother for the corresponding group of births
+AverageNumberPrenatalVisits: The average number of prenatal visits of the mother for the corresponding group of births
+AverageIntervalSinceLastBirth: The average length of time since the last birth for the corresponding group of births
+
+```{r}
+#read data
+maternity_df = read.csv('maternity.csv')
+```
+
+# Project Start
+
+```{r}
+library(tidyverse)
+```
+
+## Dataset Descripition
+
+```{r}
+head(maternity_df)
+
+summary(maternity_df)
+
+#dim(maternity_df) #842 obs, 13 var
+
+apply(maternity_df, MARGIN = 2, FUN = class) #var classes
+```
+
+## Hypothesis
+
+1. Tobacco use reduces the child's birth weight among mother's without prior birth deaths
+
+2. As the age of the mother increases, the number of prenatal visits increases.
+
+3. 
+
+## Data Visualizations
+
+```{r}
+#Hypothesis 1
+
+h1_df = filter(maternity_df, TobaccoUse %in% c("Yes", "No"), PrePregnancyDiabetes == "No", PrePregnancyHypertension == "No",
+               PriorBirthsNowDeceased == "0")
+
+h1_df %>%
+  group_by(TobaccoUse) %>%
+  summarise(true_count = sum(Births), 
+            mean_AverageBirthWeight = mean(AverageBirthWeight)) %>%
+  ggplot(aes(x = TobaccoUse, y = mean_AverageBirthWeight)) +
+  geom_col(col = "black", fill = "steelblue") +
+  theme_bw() + 
+  labs(title = "Tobacco Use is Associated with Increased Birthweights", x = "Tobacco Use", y = "Average Birthweight (Grams)")
+  
+
+  mutate(total = sum(true_count),
+         prop = count / total,
+         se = sqrt(prop * (1 - prop) / total),  
+         lower = prop - 2 * se,
+         upper = prop + 2 * se)
+
+# ohtani_batted_balls %>%
+#   group_by(batted_ball_type) %>% 
+#   summarize(count = n()) %>% 
+#   ungroup() %>% 
+#   mutate(total = sum(count),
+#          prop = count / total,
+#          se = sqrt(prop * (1 - prop) / total),  
+#          lower = prop - 2 * se,  
+#          upper = prop + 2 * se) %>% 
+#   ggplot(aes(x = batted_ball_type)) +
+#   geom_bar(aes(y = prop),
+#            stat = "identity") + 
+#   geom_errorbar(aes(ymin = lower, 
+#                     ymax = upper), 
+#                 color = "red") + 
+#   theme_bw()
+
+  
+#Calculate standard deviation in group using rep(AverageBirthWeight, births)
+h1_df_no = filter(h1_df, TobaccoUse == "No")
+
+no_hold = NULL
+
+for(i in 1:length(h1_df_no)){
+  
+  temp = rep(h1_df_no[i,]$AverageBirthWeight, h1_df_no[i,]$Births)
+  
+  no_hold = c(no_hold, temp)  
+}
+
+h1_df_yes = filter(h1_df, TobaccoUse == "Yes")
+
+yes_hold = NULL
+
+for(i in 1:length(h1_df_yes)){
+  
+  temp = rep(h1_df_yes[i,]$AverageBirthWeight, h1_df_yes[i,]$Births)
+  
+  yes_hold = c(yes_hold, temp)
+  
+}
+
+sd(yes_hold)
+
+sd(no_hold)
+```
+
+```{r}
+#Hypothesis 2
+
+
+```
+
+```{r}
+#Hypothesis 3
+
+
+```
+
+## Clustering
+
+```{r}
+
+```
+
+# Conclusion
+
