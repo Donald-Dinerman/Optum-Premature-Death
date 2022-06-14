@@ -308,7 +308,7 @@ init_kmeanspp <-
 
 clean_gapminder %>%
   mutate(country_clusters = 
-           as.factor(init_kmeanspp@cluster)) %>% #<<
+           as.factor(init_kmeanspp@cluster)) %>% #<< #@ symbol bc init_kmeanspp is an s4 object
   ggplot(aes(x = log_gdp, y = life_expectancy,
              color = country_clusters)) +
   geom_point() + 
@@ -345,6 +345,7 @@ tibble(totalwss =
   mutate(k = n_clusters_search) %>%
   ggplot(aes(x = k, y = totalwss)) +
   geom_line() + geom_point() +
+  scale_x_continuous(breaks = seq(0, 12, by = 2)) +
   labs(x = "Number of clusters K", y = "Total WSS") +
   theme_bw()
 
