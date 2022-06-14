@@ -82,50 +82,17 @@ apply(maternity_df, MARGIN = 2, FUN = class) #var classes
 
 2. As the age of the mother increases, the number of prenatal visits increases.
 
-3. 
+3. Tobacco use is more prevalent among mothers with at least 1 prior birth deceased.
 
 ## Data Visualizations
 
 ```{r}
 #Hypothesis 1
 
+#create dataset with counterfactual
 h1_df = filter(maternity_df, TobaccoUse %in% c("Yes", "No"), PrePregnancyDiabetes == "No", PrePregnancyHypertension == "No",
                PriorBirthsNowDeceased == "0")
 
-h1_df %>%
-  group_by(TobaccoUse) %>%
-  summarise(true_count = sum(Births), 
-            mean_AverageBirthWeight = mean(AverageBirthWeight)) %>%
-  ggplot(aes(x = TobaccoUse, y = mean_AverageBirthWeight)) +
-  geom_col(col = "black", fill = "steelblue") +
-  theme_bw() + 
-  labs(title = "Tobacco Use is Associated with Increased Birthweights", x = "Tobacco Use", y = "Average Birthweight (Grams)")
-  
-
-  mutate(total = sum(true_count),
-         prop = count / total,
-         se = sqrt(prop * (1 - prop) / total),  
-         lower = prop - 2 * se,
-         upper = prop + 2 * se)
-
-# ohtani_batted_balls %>%
-#   group_by(batted_ball_type) %>% 
-#   summarize(count = n()) %>% 
-#   ungroup() %>% 
-#   mutate(total = sum(count),
-#          prop = count / total,
-#          se = sqrt(prop * (1 - prop) / total),  
-#          lower = prop - 2 * se,  
-#          upper = prop + 2 * se) %>% 
-#   ggplot(aes(x = batted_ball_type)) +
-#   geom_bar(aes(y = prop),
-#            stat = "identity") + 
-#   geom_errorbar(aes(ymin = lower, 
-#                     ymax = upper), 
-#                 color = "red") + 
-#   theme_bw()
-
-  
 #Calculate standard deviation in group using rep(AverageBirthWeight, births)
 h1_df_no = filter(h1_df, TobaccoUse == "No")
 
@@ -150,9 +117,27 @@ for(i in 1:length(h1_df_yes)){
   
 }
 
-sd(yes_hold)
+#Barplot with CI (The CI are so small bc the n is so large)
+h1_df %>%
+  group_by(TobaccoUse) %>%
+  summarise(true_count = sum(Births), 
+            mean_AverageBirthWeight = mean(AverageBirthWeight)) %>%
+  mutate(total = sum(true_count),
+         sd = c(sd(no_hold), sd(yes_hold)),
+         margin = qt(0.975, df = true_count - 1)*sd/sqrt(true_count),
+         lower = mean_AverageBirthWeight - margin,
+         upper = mean_AverageBirthWeight + margin) %>%
+  ggplot(aes(x = TobaccoUse, y = mean_AverageBirthWeight)) +
+  geom_col(col = "black", fill = "steelblue") +
+  #geom_errorbar(aes(ymin = lower,ymax = upper), color = "red") + #CI
+  #coord_cartesian(ylim = c(3000, 3500)) + #Zoom in
+  geom_text(aes(label = round(mean_AverageBirthWeight, 0)), vjust = -0.25) + #text label
+  theme_bw() + 
+  labs(title = "Tobacco Use is Associated with Decreased Birthweights", x = "Tobacco Use", y = "Average Birthweight (Grams)")
+```
 
-sd(no_hold)
+```
+This barplot supports our hypothesis that tobacco use reduces the child's birth weight among mother's without prior birth deaths. Mother's with Tobacco use birth babies approximately 213 grams lighter than mother's without tobacco use. With 3.3. million observations for mother's not using tobacco and 207,000 observations for mother's using tobacco, there is sufficient sampling to state that this difference is statistically significant (the CI intervals are super small).
 ```
 
 ```{r}
@@ -163,8 +148,23 @@ sd(no_hold)
 
 ```{r}
 #Hypothesis 3
+positions = c("None", "At least One")
 
+filter(maternity_df, PriorBirthsNowDeceased != "Unknown", TobaccoUse != "Unknown") %>%
+  mutate(new_dead_baby = ifelse(PriorBirthsNowDeceased == "0", "None", "At least One")) %>%
+  group_by(new_dead_baby, TobaccoUse) %>%
+  summarise(count = sum(Births)) %>%
+  mutate(total = sum(count),
+         prop = round(count/total, 5)) %>%
+  ggplot(aes(x = new_dead_baby, y = prop, fill = TobaccoUse)) +
+  geom_col() + 
+  scale_x_discrete(limits = positions) + #set positions of bars
+  theme_bw() +
+  labs(title = "", x = "Number of Deceased Births", y = "Proportion of Births", fill = "Tobacco Use")
+```
 
+```
+This visualization does supports our hypothesis that tobacco use is more prevalent among mothers with at least 1 prior birth deceased.
 ```
 
 ## Clustering
@@ -174,4 +174,6 @@ sd(no_hold)
 ```
 
 # Conclusion
+
+
 
