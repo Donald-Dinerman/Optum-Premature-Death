@@ -352,18 +352,88 @@ nba_filtered_stats %>%
 
 - Identify the point whose farthest point is closest (hence the minimax)
 
-```{r out.width='60%', echo = FALSE, fig.align='center'}
-knitr::include_graphics("https://europepmc.org/articles/PMC4527350/bin/nihms637357f2.jpg")
-```
-
 - Use this minimum-maximum distance as the measure of cluster dissimilarity
 
 - Dendogram interpretation: each point point is $\leq h$ in dissimilarity to the prototype of cluster
 
 - Cluster centers are chosen among the observations themselves - hence prototype
 
--
+## Minimax linkage example
+
+- Easily done in `R` via the [`protoclust`](https://github.com/jacobbien/protoclust) package
+
+- Use the `protoclust()` function to apply the clustering to the `dist()` object
+
+```{r nba-minimax}
+library(protoclust)
+
+nba_minimax <- protoclust(player_dist) #<<
+
+ggdendrogram(nba_minimax, 
+             theme_dendro = FALSE, 
+             labels = FALSE, 
+             leaf_labels = FALSE) + 
+  labs(y = "Maximum dissimilarity from prototype") +
+  theme_bw() +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank())
+```
+
+## Minimax linkage example
+
+- Use the `protocut()` function to make the cut 
+
+- But then access the cluster labels `cl`
+
+```{r nba-minimax-cut}
+minimax_player_clusters <- 
+  protocut(nba_minimax, k = 4)#<<
+
+nba_filtered_stats %>%
+  mutate(player_clusters = 
+           as.factor(minimax_player_clusters$cl)) %>% #<<
+  ggplot(aes(x = std_x3pa, y = std_trb,
+             color = player_clusters)) +
+  geom_point(alpha = 0.5) + 
+  ggthemes::scale_color_colorblind() +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+## Minimax linkage example
+
+- Want to check out the prototypes for the three clusters
+
+- `protocut` returns the indices of the prototypes (in order of the cluster labels)
+
+```{r prototypes-indices}
+minimax_player_clusters$protos
+```
+
+- View these player rows using `slice`:
+
+```{r proto-players}
+nba_filtered_stats %>%
+  dplyr::select(player, pos, age, std_x3pa, std_trb) %>%
+  slice(minimax_player_clusters$protos)
+```
 
 
+## Wrapping up...
 
+- For context, how does player position (`pos`) relate to our clustering results?
+
+```{r minimax-comparison}
+table("Clusters" = minimax_player_clusters$cl, "Positions" = nba_filtered_stats$pos)
+```
+
+- Can see positions tend to fall within particular clusters...
+
+- What's the way to visually compare the two labels?
+
+- We can easily include more variables - just changes our distance matrix
+
+- But we might want to explore soft assignments instead...
 
