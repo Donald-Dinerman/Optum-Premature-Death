@@ -315,3 +315,72 @@ We did not perform any statistical tests (e.g., t-test) to compare group average
 Our clustering doesn't weigh the births within each row and rather treats each row as a single observation.
 
 Feel free to ask any questions!
+
+
+
+
+
+
+
+
+
+
+
+## Testing Clustering
+
+```{r}
+#An alternative: Using context of baby deceased # to infer k (e.g., k = 2 bc 2 groups of deceased births)
+library(tidyverse)
+library(dslabs)
+
+#remove NA from df
+cluster_df = dplyr::select(maternity_df, PriorBirthsNowDeceased, AveragePrePregnancyBMI, AverageBirthWeight) %>%  drop_na()
+
+#std cont var
+clean_cluster_df <- cluster_df %>%
+  mutate(std_BMI = as.numeric(scale(AveragePrePregnancyBMI, center = TRUE, scale = TRUE)), #<<
+         std_weight = as.numeric(scale(AverageBirthWeight, center = TRUE, scale = TRUE)),
+         update_deceased = ifelse(PriorBirthsNowDeceased == "0", "None", "At Least One")) #<<
+
+#K-means++
+library(flexclust)
+
+set.seed(12)
+
+init_kmeanspp <- 
+  kcca(dplyr::select(clean_cluster_df, #<<
+                     std_BMI, std_weight), k = 2, #<<
+       control = list(initcent = "kmeanspp")) #<<
+
+clean_cluster_df %>%
+  mutate(country_clusters = 
+           as.factor(init_kmeanspp@cluster)) %>% #<< #@ symbol bc init_kmeanspp is an s4 object
+  ggplot(aes(x = AveragePrePregnancyBMI, y = AverageBirthWeight,
+             color = country_clusters)) +
+  geom_point() + 
+  ggthemes::scale_color_colorblind() +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(color = "Cluster", x = "Mother's BMI", y = "Birth Weight (Grams)")
+
+clean_cluster_df %>%
+  ggplot(aes(x = AveragePrePregnancyBMI, y = AverageBirthWeight,
+             color = update_deceased)) +
+  geom_point() +
+  ggthemes::scale_color_colorblind() +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(color = "Deceased Births #", x = "Mother's BMI", y = "Birth Weight (Grams)")
+```
+
+
+
+
+
+
+
+
+
+
+
+
