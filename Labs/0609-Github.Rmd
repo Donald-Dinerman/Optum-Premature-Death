@@ -25,6 +25,10 @@ usethis::use_git_config(user.name = "Donald Dinerman", user.email = "ddinerma@an
 usethis::create_github_token()
 ```
 
+```
+New token: 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
+```
+
 ```{r}
 #enter token (2: replace these creds)
 gitcreds::gitcreds_set()
