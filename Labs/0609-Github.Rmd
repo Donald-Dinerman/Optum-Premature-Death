@@ -41,3 +41,10 @@ gitcreds::gitcreds_set()
 ```
 
 Issue: Not connecting to my github account even after using new token, after changing repo visibility status (priv-->pub)
+
+```{r}
+#remote: Permission to Donald-Dinerman/Optum-Bridge-Summer-Research.git denied to Donald-Dinerman.
+#fatal: unable to access 'https://github.com/Donald-Dinerman/Optum-Bridge-Summer-Research/': 
+#The requested URL returned error: 403
+```
+
