@@ -77,7 +77,7 @@ library(gt)
 
 #dim(maternity_df) #842 obs, 13 var
 
-maternity_df %>% select(State:Births) %>% head() %>% gt()
+maternity_df %>% select(State:Births) %>% slice(c(1, 55, 99, 175, 252)) %>% gt()
 ```
 
 ```
@@ -152,7 +152,7 @@ h1_df %>%
   #coord_cartesian(ylim = c(3000, 3500)) + #Zoom in
   geom_text(aes(label = round(mean_AverageBirthWeight, 0)), vjust = -0.25) + #text label
   theme_bw() + 
-  labs(title = "Tobacco Use is Associated with Decreased Birthweights", x = "Tobacco Use", y = "Average Birthweight (Grams)")
+  labs(title = "", x = "Tobacco Use", y = "Average Birthweight (Grams)") #Tobacco Use is Associated with Decreased Birthweights
 ```
 
 ```
@@ -167,7 +167,7 @@ maternity_df %>%
   geom_point(alpha = 0.25) +
   geom_smooth(se = F, method = "lm") +
   theme_bw() +
-  labs(x = "Mother Age (Year)", y = "Number of Prenatal Visits", title = "Older Mothers Have More Prenatal Visits")
+  labs(x = "Mother Age (Year)", y = "Number of Prenatal Visits", title = "") #Older Mothers Have More Prenatal Visits"
 ```
 
 ```
@@ -175,14 +175,24 @@ This scatterplot supports our hypothesis that as the age of the mother increases
 ```
 
 ```{r}
-test_df = filter(maternity_df, PriorBirthsNowDeceased != "Unknown", TobaccoUse != "Unknown") %>%
-  mutate(new_dead_baby = ifelse(PriorBirthsNowDeceased == "0", "None", "At least One"))
+df_count = filter(maternity_df, PriorBirthsNowDeceased != "Unknown", TobaccoUse != "Unknown") %>%
+  mutate(new_dead_baby = ifelse(PriorBirthsNowDeceased == "0", "None", "At least One")) %>%
+  group_by(new_dead_baby, TobaccoUse) %>%
+  summarise(count = sum(Births))
 
-mosaicplot(table(test_df$new_dead_baby, test_df$TobaccoUse),
+pre_table_df = data.frame(dead_baby = c(rep("At Least One", df_count$count[1]), rep("At Least One", df_count$count[2]), 
+                                        rep("None", df_count$count[3]), rep("None", df_count$count[4])),
+              tobacco = c(rep("No", df_count$count[1]), rep("Yes", df_count$count[2]), 
+                          rep("No", df_count$count[3]), rep("Yes", df_count$count[4])))
+
+mosaicplot(table(pre_table_df$dead_baby, pre_table_df$tobacco),
            shade = T,
-           main = "Tobacco Use Higher Than Expected for mothers with at least 1 prior birth deceased ", ylab = "Tobacco Use")
+           main = " ", ylab = "Tobacco Use") #High Tobacco Use for Mothers With at Least 1 Prior Birth Deceased
 ```
 
+```
+This visualization supports our hypothesis that tobacco use is more prevalent among mothers with at least 1 prior birth deceased. The observed counts for tobacco use for mother's with at least one birth deceased is signficantly greater than what we would expect given independence between tobacco use and number of deceased births.
+```
 
 ```{r, include=F}
 #Hypothesis 3
@@ -257,6 +267,10 @@ clean_cluster_df %>%
   theme_bw() +
   theme(legend.position = "right") +
   labs(color = "Cluster", x = "Mother's BMI", y = "Birth Weight (Grams)")
+```
+
+```
+The clusters depict segmentation in baby's birth weight and mother's BMI (e.g., cluster 4 groups mother's with low BMI [<30] and high birth weights [>3100]).
 ```
 
 ```{r}

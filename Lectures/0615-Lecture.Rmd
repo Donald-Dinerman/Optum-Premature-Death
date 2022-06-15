@@ -369,7 +369,7 @@ library(protoclust)
 
 nba_minimax <- protoclust(player_dist) #<<
 
-ggdendrogram(nba_minimax, 
+ggdendrogram(nba_minimax,  #This not running
              theme_dendro = FALSE, 
              labels = FALSE, 
              leaf_labels = FALSE) + 
