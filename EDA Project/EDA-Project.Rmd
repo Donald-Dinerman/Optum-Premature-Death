@@ -252,6 +252,8 @@ clean_cluster_df <- cluster_df %>%
 #K-means++
 library(flexclust)
 
+set.seed(123)
+
 init_kmeanspp <- 
   kcca(dplyr::select(clean_cluster_df, #<<
                      std_BMI, std_weight), k = 5, #<<
@@ -270,7 +272,7 @@ clean_cluster_df %>%
 ```
 
 ```
-The clusters depict segmentation in baby's birth weight and mother's BMI (e.g., cluster 4 groups mother's with low BMI [<30] and high birth weights [>3100]).
+The clusters depict segmentation in baby's birth weight and mother's BMI (e.g., cluster 2 groups mother's with low BMI [<30] and high birth weights [>3100]).
 ```
 
 ```{r}
