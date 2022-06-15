@@ -40,3 +40,4 @@ gitcreds::gitcreds_set()
 # -> Done.
 ```
 
+Issue: Not connecting to my github account even after using new token, after changing repo visibility status (priv-->pub)
