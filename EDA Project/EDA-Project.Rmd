@@ -218,116 +218,6 @@ filter(maternity_df, PriorBirthsNowDeceased != "Unknown", TobaccoUse != "Unknown
 This visualization supports our hypothesis that tobacco use is more prevalent among mothers with at least 1 prior birth deceased. Among mother's with at least 1 prior birth deceased, approximately 11% used tobacco while only 6% of mother's without prior birth deaths used tobacco products.
 ```
 
-## Clustering
-
-```{r}
-#Cluster based on two continuous variables (e.g., BMI, Birth Weight)
-library(tidyverse)
-library(dslabs)
-
-cluster_df = dplyr::select(maternity_df, AveragePrePregnancyBMI, AverageBirthWeight) %>%  drop_na()
-
-# init_kmeans <- 
-#   kmeans(cluster_df,
-#          algorithm = "Lloyd", centers = 3,
-#          nstart = 1)
-# 
-# cluster_df %>%
-#   mutate(country_clusters = 
-#            as.factor(init_kmeans$cluster)) %>% #<<
-#   ggplot(aes(x = AveragePrePregnancyBMI, y = AverageBirthWeight,
-#              color = country_clusters)) +
-#   geom_point() + 
-#   ggthemes::scale_color_colorblind() +
-#   theme_bw() +
-#   theme(legend.position = "right") +
-#   labs(x = "", y = " Birth")
-```
-
-```{r}
-clean_cluster_df <- cluster_df %>%
-  mutate(std_BMI = as.numeric(scale(AveragePrePregnancyBMI, center = TRUE, scale = TRUE)), #<<
-         std_weight = as.numeric(scale(AverageBirthWeight, center = TRUE, scale = TRUE))) #<<
-```
-
-```{r}
-#K-means++
-library(flexclust)
-
-set.seed(123)
-
-init_kmeanspp <- 
-  kcca(dplyr::select(clean_cluster_df, #<<
-                     std_BMI, std_weight), k = 5, #<<
-       control = list(initcent = "kmeanspp")) #<<
-
-clean_cluster_df %>%
-  mutate(country_clusters = 
-           as.factor(init_kmeanspp@cluster)) %>% #<< #@ symbol bc init_kmeanspp is an s4 object
-  ggplot(aes(x = AveragePrePregnancyBMI, y = AverageBirthWeight,
-             color = country_clusters)) +
-  geom_point() + 
-  ggthemes::scale_color_colorblind() +
-  theme_bw() +
-  theme(legend.position = "right") +
-  labs(color = "Cluster", x = "Mother's BMI", y = "Birth Weight (Grams)")
-```
-
-```
-The clusters depict segmentation in baby's birth weight and mother's BMI (e.g., cluster 2 groups mother's with low BMI [<30] and high birth weights [>3100]).
-```
-
-```{r}
-# Initialize number of clusters to search over
-n_clusters_search <- 2:12
-
-tibble(totalwss = 
-         # Compute total WSS for each number by looping with sapply
-         sapply(n_clusters_search,
-                function(k) {
-                  kmeans_results <- kmeans(dplyr::select(clean_cluster_df,
-                                                         std_BMI,
-                                                         std_weight),
-                                           centers = k, nstart = 30)
-                  # Return the total WSS for choice of k
-                  return(kmeans_results$tot.withinss)
-                })) %>%
-  mutate(k = n_clusters_search) %>%
-  ggplot(aes(x = k, y = totalwss)) +
-  geom_line() + geom_point() +
-  scale_x_continuous(breaks = seq(0, 12, by = 2)) +
-  labs(x = "Number of clusters K", y = "Total WSS") +
-  theme_bw()
-```
-
-## Final Slide
-
-**Conclusions**
-
-Mother's with prior tobacco use birth babies approximately 213 grams lighter than mother's without tobacco use.
-
-As mother's age increases, the number of prenatal visits increase. This may happen because older mothers are more susceptible to pregnancy complications.
-
-Among mother's with at least 1 prior birth deceased, approximately 11% used tobacco while only 6% of mother's without prior birth deaths used tobacco products.
-
-**Limitations**
-
-We did not perform any statistical tests (e.g., t-test) to compare group averages, so our conclusions are purely based on visualizations.
-
-Our clustering doesn't weigh the births within each row and rather treats each row as a single observation.
-
-Feel free to ask any questions!
-
-
-
-
-
-
-
-
-
-
-
 ## Testing Clustering
 
 ```{r}
@@ -414,7 +304,147 @@ cmat$table
 cmat$overall[1] #~60%, not bad considering k-means is unsupervised and the reference groups have unequal n (n1 = 376, n2 = 462)
 ```
 
+```{r}
+n_clusters_search <- 2:12
 
+tibble(totalwss = 
+         # Compute total WSS for each number by looping with sapply
+         sapply(n_clusters_search,
+                function(k) {
+                  kmeans_results <- kmeans(dplyr::select(clean_cluster_df,
+                                                         std_BMI,
+                                                         std_weight),
+                                           centers = k, nstart = 30)
+                  # Return the total WSS for choice of k
+                  return(kmeans_results$tot.withinss)
+                })) %>%
+  mutate(k = n_clusters_search) %>%
+  ggplot(aes(x = k, y = totalwss)) +
+  geom_line() + geom_point() +
+  scale_x_continuous(breaks = seq(0, 12, by = 2)) +
+  labs(x = "Number of clusters K", y = "Total WSS") +
+  theme_bw()
+```
+
+## Final Slide
+
+**Conclusions**
+
+Mother's with prior tobacco use birth babies approximately 213 grams lighter than mother's without tobacco use.
+
+As mother's age increases, the number of prenatal visits increase. This may happen because older mothers are more susceptible to pregnancy complications.
+
+Among mother's with at least 1 prior birth deceased, approximately 11% used tobacco while only 6% of mother's without prior birth deaths used tobacco products.
+
+**Limitations**
+
+We did not perform any statistical tests (e.g., t-test) to compare group averages, so our conclusions are purely based on visualizations.
+
+Our clustering doesn't weigh the births within each row and rather treats each row as a single observation.
+
+Feel free to ask any questions!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Clustering
+
+```{r}
+#Cluster based on two continuous variables (e.g., BMI, Birth Weight)
+# library(tidyverse)
+# library(dslabs)
+# 
+# cluster_df = dplyr::select(maternity_df, AveragePrePregnancyBMI, AverageBirthWeight) %>%  drop_na()
+
+# init_kmeans <- 
+#   kmeans(cluster_df,
+#          algorithm = "Lloyd", centers = 3,
+#          nstart = 1)
+# 
+# cluster_df %>%
+#   mutate(country_clusters = 
+#            as.factor(init_kmeans$cluster)) %>% #<<
+#   ggplot(aes(x = AveragePrePregnancyBMI, y = AverageBirthWeight,
+#              color = country_clusters)) +
+#   geom_point() + 
+#   ggthemes::scale_color_colorblind() +
+#   theme_bw() +
+#   theme(legend.position = "right") +
+#   labs(x = "", y = " Birth")
+```
+
+```{r}
+# clean_cluster_df <- cluster_df %>%
+#   mutate(std_BMI = as.numeric(scale(AveragePrePregnancyBMI, center = TRUE, scale = TRUE)), #<<
+#          std_weight = as.numeric(scale(AverageBirthWeight, center = TRUE, scale = TRUE))) #<<
+```
+
+```{r}
+#K-means++
+# library(flexclust)
+# 
+# set.seed(123)
+# 
+# init_kmeanspp <- 
+#   kcca(dplyr::select(clean_cluster_df, #<<
+#                      std_BMI, std_weight), k = 5, #<<
+#        control = list(initcent = "kmeanspp")) #<<
+# 
+# clean_cluster_df %>%
+#   mutate(country_clusters = 
+#            as.factor(init_kmeanspp@cluster)) %>% #<< #@ symbol bc init_kmeanspp is an s4 object
+#   ggplot(aes(x = AveragePrePregnancyBMI, y = AverageBirthWeight,
+#              color = country_clusters)) +
+#   geom_point() + 
+#   ggthemes::scale_color_colorblind() +
+#   theme_bw() +
+#   theme(legend.position = "right") +
+#   labs(color = "Cluster", x = "Mother's BMI", y = "Birth Weight (Grams)")
+```
+
+```
+The clusters depict segmentation in baby's birth weight and mother's BMI (e.g., cluster 2 groups mother's with low BMI [<30] and high birth weights [>3100]).
+```
+
+```{r}
+# Initialize number of clusters to search over
+# n_clusters_search <- 2:12
+# 
+# tibble(totalwss = 
+#          # Compute total WSS for each number by looping with sapply
+#          sapply(n_clusters_search,
+#                 function(k) {
+#                   kmeans_results <- kmeans(dplyr::select(clean_cluster_df,
+#                                                          std_BMI,
+#                                                          std_weight),
+#                                            centers = k, nstart = 30)
+#                   # Return the total WSS for choice of k
+#                   return(kmeans_results$tot.withinss)
+#                 })) %>%
+#   mutate(k = n_clusters_search) %>%
+#   ggplot(aes(x = k, y = totalwss)) +
+#   geom_line() + geom_point() +
+#   scale_x_continuous(breaks = seq(0, 12, by = 2)) +
+#   labs(x = "Number of clusters K", y = "Total WSS") +
+#   theme_bw()
+```
 
 
 
