@@ -69,15 +69,17 @@ library(tidyverse)
 ## Dataset Descripition
 
 ```{r}
-library(gt)
-
-#head(maternity_df)
+library(kableExtra)
 
 #sum(maternity_df$Births) #3,744,389 individual obs
 
 #dim(maternity_df) #842 obs, 13 var
 
-maternity_df %>% select(State:Births) %>% slice(c(1, 55, 99, 175, 252)) %>% gt()
+maternity_df %>% 
+  select(State:Births) %>% 
+  slice(c(1, 55, 99, 175, 252)) %>%  
+  kbl() %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "center")
 ```
 
 ```
@@ -352,7 +354,7 @@ init_kmeanspp <-
                      std_BMI, std_weight), k = 2, #<<
        control = list(initcent = "kmeanspp")) #<<
 
-clean_cluster_df %>%
+cluster_plot = clean_cluster_df %>%
   mutate(country_clusters = 
            as.factor(init_kmeanspp@cluster)) %>% #<< #@ symbol bc init_kmeanspp is an s4 object
   ggplot(aes(x = AveragePrePregnancyBMI, y = AverageBirthWeight,
@@ -363,7 +365,7 @@ clean_cluster_df %>%
   theme(legend.position = "bottom") +
   labs(color = "Cluster", x = "Mother's BMI", y = "Birth Weight (Grams)")
 
-clean_cluster_df %>%
+real_plot = clean_cluster_df %>%
   ggplot(aes(x = AveragePrePregnancyBMI, y = AverageBirthWeight,
              color = update_deceased)) +
   geom_point() +
@@ -373,7 +375,22 @@ clean_cluster_df %>%
   labs(color = "Deceased Births #", x = "Mother's BMI", y = "Birth Weight (Grams)")
 ```
 
+```{r}
+library(animation)
 
+saveGIF(
+  expr = {
+    plot(real_plot)
+    plot(cluster_plot)
+  },
+  interval = 2,
+  movie.name = "stop_time_cluster.gif"
+)
+```
+
+```{r}
+knitr::include_graphics("stop_time_cluster.gif")
+```
 
 
 
