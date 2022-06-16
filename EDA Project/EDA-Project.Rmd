@@ -376,6 +376,7 @@ real_plot = clean_cluster_df %>%
 ```
 
 ```{r}
+#save gif
 library(animation)
 
 saveGIF(
@@ -389,10 +390,29 @@ saveGIF(
 ```
 
 ```{r}
+#display gif
 knitr::include_graphics("stop_time_cluster.gif")
 ```
 
 
+```{r}
+library(caret)
+
+test_df = clean_cluster_df %>%
+  mutate(country_clusters = 
+           as.factor(init_kmeanspp@cluster))
+
+#table(test_df$update_deceased, test_df$country_clusters)
+
+#factors need to be on same lvl
+test_df$reference = ifelse(test_df$update_deceased == "None", 2, 1) %>% as.factor() #At least one --> 1, None --> 2
+
+cmat = confusionMatrix(data = test_df$country_clusters, reference = test_df$reference)
+
+cmat$table
+
+cmat$overall[1] #~60%, not bad considering k-means is unsupervised and the reference groups have unequal n (n1 = 376, n2 = 462)
+```
 
 
 
