@@ -377,16 +377,16 @@ real_plot = clean_cluster_df %>%
 
 ```{r}
 #save gif
-library(animation)
-
-saveGIF(
-  expr = {
-    plot(real_plot)
-    plot(cluster_plot)
-  },
-  interval = 2,
-  movie.name = "stop_time_cluster.gif"
-)
+# library(animation)
+# 
+# saveGIF(
+#   expr = {
+#     plot(real_plot)
+#     plot(cluster_plot)
+#   },
+#   interval = 2,
+#   movie.name = "stop_time_cluster.gif"
+# )
 ```
 
 ```{r}

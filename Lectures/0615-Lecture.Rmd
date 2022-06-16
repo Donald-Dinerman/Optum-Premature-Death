@@ -270,6 +270,8 @@ nba_filtered_stats %>%
 
 Change the `method` argument to `single`
 
+Good at capturing weird shapes (e.g., ellipse). Can perform similar clustering effect as dbscan (i.e., density-based scan)
+
 ```{r single-dendro-cut}
 nba_single_hclust <- 
   hclust(player_dist, method = "single")
@@ -354,7 +356,7 @@ nba_filtered_stats %>%
 
 - Use this minimum-maximum distance as the measure of cluster dissimilarity
 
-- Dendogram interpretation: each point point is $\leq h$ in dissimilarity to the prototype of cluster
+- Dendogram interpretation: each point is $\leq h$ in dissimilarity to the prototype of cluster
 
 - Cluster centers are chosen among the observations themselves - hence prototype
 
@@ -369,7 +371,10 @@ library(protoclust)
 
 nba_minimax <- protoclust(player_dist) #<<
 
-ggdendrogram(nba_minimax,  #This not running
+#to set class and avoid dual class error: Error in if (dataClass %in% c("dendrogram", "hclust")) { :  the condition has length > 1
+class(nba_minimax) = "hclust" 
+
+ggdendrogram(nba_minimax,
              theme_dendro = FALSE, 
              labels = FALSE, 
              leaf_labels = FALSE) + 
@@ -383,30 +388,16 @@ ggdendrogram(nba_minimax,  #This not running
 
 ## Minimax linkage example
 
-- Use the `protocut()` function to make the cut 
-
-- But then access the cluster labels `cl`
-
-```{r nba-minimax-cut}
-minimax_player_clusters <- 
-  protocut(nba_minimax, k = 4)#<<
-
-nba_filtered_stats %>%
-  mutate(player_clusters = 
-           as.factor(minimax_player_clusters$cl)) %>% #<<
-  ggplot(aes(x = std_x3pa, y = std_trb,
-             color = player_clusters)) +
-  geom_point(alpha = 0.5) + 
-  ggthemes::scale_color_colorblind() +
-  theme_bw() +
-  theme(legend.position = "bottom")
-```
-
-## Minimax linkage example
-
 - Want to check out the prototypes for the three clusters
 
 - `protocut` returns the indices of the prototypes (in order of the cluster labels)
+
+```{r}
+nba_minimax <- protoclust(player_dist)
+
+minimax_player_clusters <- 
+  protocut(nba_minimax, k = 3)#<<
+```
 
 ```{r prototypes-indices}
 minimax_player_clusters$protos
@@ -415,11 +406,31 @@ minimax_player_clusters$protos
 - View these player rows using `slice`:
 
 ```{r proto-players}
-nba_filtered_stats %>%
+nba_prototype = nba_filtered_stats %>%
   dplyr::select(player, pos, age, std_x3pa, std_trb) %>%
   slice(minimax_player_clusters$protos)
-```
 
+nba_prototype
+```
+- Use the `protocut()` function to make the cut 
+
+- But then access the cluster labels `cl`
+
+```{r nba-minimax-cut}
+nba_filtered_stats %>%
+  mutate(player_clusters = 
+           as.factor(minimax_player_clusters$cl)) %>% #<<
+  ggplot(aes(x = std_x3pa, y = std_trb,
+             color = player_clusters)) +
+  geom_point(alpha = 0.5) + 
+  # geom_point(data = mutate(nba_prototype, player_clusters = as.factor(c(1,2,3))), #minimax reference 
+  #          size = 5) +
+  geom_label(data = mutate(nba_prototype, player_clusters = as.factor(c(1,2,3))), #gives name to reference point in clusters
+          aes(label = player)) +
+  ggthemes::scale_color_colorblind() +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
 
 ## Wrapping up...
 
