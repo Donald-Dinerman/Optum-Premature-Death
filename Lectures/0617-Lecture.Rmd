@@ -1,0 +1,440 @@
+---
+title: "Presentations: Xaringan"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Begin with background and motivation
+
+Every presentation has a story:
+
+  - What is the motivation? Why should people care about your work?
+  
+  - You want to build up want your work is trying to address
+
+Example [nflWAR talk from 2017](https://www.youtube.com/watch?v=djD-yL3vWNQ):
+
+  - Do NOT begin with: "We're introducing WAR for NFL!"
+  
+  - Instead begin with current state of NFL analytics and need for better, reproducible player level-metrics
+
+Do NOT include an outline slide!
+
+  - Your presentation should flow naturally
+
+## Describing the data
+
+You want to provide a general overview of your dataset:
+
+  - What are your observations? i.e., what does each row of your dataset represent?
+  
+  - What are the relevant variables / features? i.e., what are the columns of interest?
+  
+    - Be careful though with many variables - avoid just listing everything!
+    
+    - Simplify by describing groups of variables together
+
+Use examples - makes your data explicit and concrete for the audience
+
+  - But Do NOT print out raw `R` console output!
+  
+  - Use text or a clean formatted table (via `knitr`, [`DT`](https://rstudio.github.io/DT/), [`gt`](https://gt.rstudio.com/))
+
+## Introducing and describing methods
+
+- Prior to presenting results, you want to clearly state any transformations and methods used in the analysis
+
+- Your presentation should provide the general steps for someone to replicate your work
+
+  - e.g., Used complete-linkage hierarchical clustering with [INSERT VARIABLES], determined $K$ number of clusters by [INSERT REASON]
+  
+  - e.g., Modeled [INSERT RESPONSE VARIABLE] as a function of [INSERT EXPLANATORY VARIABLES]
+  
+- For more complicated methods, you'll want to provide a brief review of the methodology
+
+- If introducing new methodology: walk through the steps clearly
+
+- Always justify your choice of methodology
+
+  - Why you used a flexible tree-based model over linear regression
+
+## Presenting results
+
+- Use the assertion-evidence model
+
+- Assertion: title of the slide should be the key takeaway in brief sentence form
+
+  - Indicates the point of the visualization or whatever means used to display the results
+
+- Evidence: the body of the slide containing the results
+
+  - Display of the results in some format that is simple to explain and understand
+  
+- Limit the amount of text in your Evidence portion - brief statements with important context
+
+- Treat the Assertion as the title of your Evidence
+
+  - Plot titles are then redundant and not necessary with an effective assertion
+
+### MLB strikeout rates have been increasing throughout MLB's history
+
+```{r lahman-example, echo = FALSE, fig.align = 'center'}
+library(tidyverse)
+library(Lahman)
+
+as_tibble(Batting) %>%
+  filter(lgID %in% c("AL", "NL")) %>%
+  group_by(yearID) %>%
+  summarize(total_sos = sum(SO, na.rm = TRUE),
+            total_atbats = sum(AB, na.rm = TRUE)) %>%
+  mutate(so_rate = total_sos / total_atbats) %>%
+  ggplot(aes(x = yearID, y = so_rate)) +
+  geom_line(color = "darkblue") +
+  geom_point(alpha = 0.8, color = "darkblue") +
+  labs(x = "Year", y = "Strikeouts / At-bats",
+       caption = "Data courtesy of Lahman") +
+  theme_bw() +
+  theme(strip.background = element_blank())
+```
+
+(Explain the `aes` of your graph - what is each axis, color, shape, etc referring to? And what is the unit scale?)
+
+## Discussion (and ending a presentation)
+
+- Conclude with a recap of the main points of your work
+
+- Then point out limitations and indicate a direction for the next steps
+
+- Either end with the Discussion slide (or Acknowledgements but this is sometimes placed at the beginning)
+
+- Never end a presentation with lone _Thank you_ slide! 
+
+  - Want the audience to focus on the final points in your Discussion slide
+  
+- Include back-up Appendix slides with additional info, ready for questions
+
+- Slides for References should not be displayed during your talk
+
+  - Their purpose is just for sharing with others
+  
+  - Alternative option: include references directly on slides either in text or via footnotes<sup>1</sup>
+
+## Additional tips and reminders
+
+Use pauses effectively to highlight points and explain steps
+
+- Showing all of your text at once can overwhelm your audience
+
+Remember: memory overload is real!
+
+- Do NOT introduce too much notation at once
+
+- Repetitive language and usage of words are useful and reminders for the audience
+
+  - Use consistent language and terminology throughout the talk
+  
+# How do we make presentations?
+
+## Use [`xaringan`](https://slides.yihui.org/xaringan) and [`xaringanthemer`](https://pkg.garrickadenbuie.com/xaringanthemer/articles/xaringanthemer.html)
+
+- Install both packages: [`xaringan`](https://slides.yihui.org/xaringan) and [`xaringanthemer`](https://pkg.garrickadenbuie.com/xaringanthemer/articles/xaringanthemer.html)
+
+- Create a new presentation using a template 
+
+- View in-progress slides with the Infinite Moon Reader addin for RStudio
+
+- More options with [xaringanExtra](https://pkg.garrickadenbuie.com/xaringanExtra/#/README?id=xaringanextra)!
+
+Check out public resources:
+
+  - Check out [Alison Hill](https://alison.rbind.io/)'s [Meet xaringan](http://arm.rbind.io/slides/xaringan.html#1) presentation
+  
+  - [Chapter 7](https://bookdown.org/yihui/rmarkdown/xaringan.html) of free online `rmarkdown` book by its author [Yihui Xie](https://yihui.org/)
+  
+  - The rest of these slides are taken from the [`xaringanthemer`](https://pkg.garrickadenbuie.com/xaringanthemer/articles/xaringanthemer.html) template in RStudio
+  
+  - And google for more [examples](https://slides.earo.me/rladiesakl20/#1)
+
+## Typography
+
+Text can be **bold**, _italic_, ~~strikethrough~~, or `inline code`.
+
+[Link to another slide](#colors).
+
+## Colors
+
+- <span style="color: var(text-color)">Text Color</span>
+
+- <span style="color: var(header-color); font-family: var(header-font-family);">Header Color</span>
+
+- <span style="color: var(link-color)">Link Color</span>
+
+- <span style="color: var(text-bold-color); font-weight: bold;">Bold Color</span>
+
+- `inline code color`
+
+# Big Topic or Inverse Slides `#`
+
+## Slide Headings `##`
+
+### Sub-slide Headings `###`
+
+#### Bold Call-Out `####`
+
+This is a normal paragraph text. Only use header levels 1-4.
+
+##### Possible, but not recommended `#####`
+
+###### Definitely don't use h6 `######`
+
+-
+class: inverse center middle
+
+# Topic Changing Interstitial
+
+```
+class: inverse center middle
+```
+
+-
+layout: true
+
+## Blocks
+
+-
+
+### Blockquote
+
+> This is a blockquote following a header.
+>
+> When something is important enough, you do it even if the odds are not in your favor.
+
+-
+
+### Code Blocks
+
+#### R Code
+
+```{r eval=FALSE}
+ggplot(gapminder) +
+  aes(x = gdpPercap, y = lifeExp, size = pop, color = country) +
+  geom_point() +
+  facet_wrap(~year)
+```
+
+#### JavaScript
+
+```js
+var fun = function lang(l) {
+  dateformat.i18n = require('./lang/' + l)
+  return true;
+}
+```
+
+-
+
+### More R Code
+
+```{r eval=FALSE}
+dplyr::starwars %>% dplyr::slice_sample(n = 4)
+```
+
+-
+
+```{r message=TRUE}
+cli::cli_alert_success("It worked!")
+```
+
+
+
+```{r message=TRUE}
+message("Just a friendly message")
+```
+
+
+
+```{r warning=TRUE}
+warning("This could be bad...")
+```
+
+
+
+```{r error=TRUE}
+stop("I hope you're sitting down for this")
+```
+
+
+-
+layout: true
+
+## Tables
+
+-
+
+```{r}
+tibble::as_tibble(mtcars)
+```
+
+-
+
+```{r}
+knitr::kable(head(mtcars), format = 'html')
+```
+
+-
+
+```{r}
+DT::datatable(head(mtcars), fillContainer = FALSE, options = list(pageLength = 4))
+```
+
+-
+layout: true
+
+## Lists
+
+-
+
+.pull-left[
+#### Here is an unordered list:
+
+*   Item foo
+*   Item bar
+*   Item baz
+*   Item zip
+]
+
+.pull-right[
+
+#### And an ordered list:
+
+1.  Item one
+1.  Item two
+1.  Item three
+1.  Item four
+]
+
+-
+
+### And a nested list:
+
+- level 1 item
+  - level 2 item
+  - level 2 item
+    - level 3 item
+    - level 3 item
+- level 1 item
+  - level 2 item
+  - level 2 item
+  - level 2 item
+- level 1 item
+  - level 2 item
+  - level 2 item
+- level 1 item
+
+-
+
+### Nesting an ol in ul in an ol
+
+- level 1 item (ul)
+  1. level 2 item (ol)
+  1. level 2 item (ol)
+    - level 3 item (ul)
+    - level 3 item (ul)
+- level 1 item (ul)
+  1. level 2 item (ol)
+  1. level 2 item (ol)
+    - level 3 item (ul)
+    - level 3 item (ul)
+  1. level 4 item (ol)
+  1. level 4 item (ol)
+    - level 3 item (ul)
+    - level 3 item (ul)
+- level 1 item (ul)
+
+-
+layout: true
+
+## Plots
+
+-
+
+```{r plot-example}
+library(ggplot2)
+(g <- ggplot(mpg) + aes(hwy, cty, color = class) + geom_point())
+```
+
+-
+
+```{r plot-example-themed}
+g + xaringanthemer::theme_xaringan(text_font_size = 16, title_font_size = 18) +
+  ggtitle("A Plot About Cars")
+```
+
+-
+layout: false
+
+## Square image
+
+<center><img src="https://octodex.github.com/images/labtocat.png" height="400px" /></center>
+
+.footnote[GitHub Octocat]
+
+-
+
+### Wide image
+
+![](https://guides.github.com/activities/hello-world/branching.png)
+
+.footnote[Wide images scale to 100% slide width]
+
+-
+
+## Two images
+
+.pull-left[
+![](https://octodex.github.com/images/motherhubbertocat.png)
+]
+
+.pull-right[
+![](https://octodex.github.com/images/dinotocat.png)
+]
+
+-
+
+## Alternatively `include_graphics`
+
+```{r out.width='60%', echo = FALSE, fig.align='center'}
+knitr::include_graphics("http://images6.fanpop.com/image/photos/42900000/Thor-Ragnarok-2017-Loki-and-Thor-mood-compilation-thor-ragnarok-42998758-268-200.gif")
+```
+
+-
+
+### Definition lists can be used with HTML syntax.
+
+<dl>
+<dt>Name</dt>
+<dd>Godzilla</dd>
+<dt>Born</dt>
+<dd>1952</dd>
+<dt>Birthplace</dt>
+<dd>Japan</dd>
+<dt>Color</dt>
+<dd>Green</dd>
+</dl>
+
+-
+class: center, middle
+
+# Thanks!
+
+Slides created via the R packages:
+
+[**xaringan**](https://github.com/yihui/xaringan)<br>
+[gadenbuie/xaringanthemer](https://github.com/gadenbuie/xaringanthemer)
+
+The chakra comes from [remark.js](https://remarkjs.com), [**knitr**](http://yihui.name/knitr), and [R Markdown](https://rmarkdown.rstudio.com).
