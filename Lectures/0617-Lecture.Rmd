@@ -1,49 +1,88 @@
 ---
-title: "Presentations: Xaringan"
+title: "Presentations"
+subtitle: "And working with xaringan and xaringanthemer"  
+date: 'June 17th, 2022'
 output:
-  pdf_document: default
-  html_document: default
+  xaringan::moon_reader:
+    css: xaringan-themer.css
+    nature:
+      slideNumberFormat: "%current%"
+      highlightStyle: github
+      highlightLines: true
+      ratio: 16:9
+      countIncrementalSlides: true
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(
+  fig.width=9, fig.height=3.5, fig.retina=3,
+  out.width = "100%",
+  cache = FALSE,
+  echo = TRUE,
+  message = FALSE, 
+  warning = FALSE,
+  hiline = TRUE
+)
 ```
+
+```{r xaringan-themer, include=FALSE, warning=FALSE}
+library(xaringanthemer)
+style_duo_accent(
+  primary_color = "#1381B0",
+  secondary_color = "#FF961C",
+  inverse_header_color = "#FFFFFF"
+)
+```
+
 
 ## Begin with background and motivation
 
-Every presentation has a story:
+Every presentation has a __story__:
 
   - What is the motivation? Why should people care about your work?
   
   - You want to build up want your work is trying to address
 
+--
+
 Example [nflWAR talk from 2017](https://www.youtube.com/watch?v=djD-yL3vWNQ):
 
-  - Do NOT begin with: "We're introducing WAR for NFL!"
+  - Do __NOT__ begin with: "We're introducing WAR for NFL!"
   
   - Instead begin with current state of NFL analytics and need for better, reproducible player level-metrics
 
-Do NOT include an outline slide!
+--
+  
+Do __NOT__ include an outline slide!
 
-  - Your presentation should flow naturally
+  - Your presentation should flow naturally 
+
+---
 
 ## Describing the data
 
 You want to provide a general overview of your dataset:
 
   - What are your observations? i.e., what does each row of your dataset represent?
+
+--
   
   - What are the relevant variables / features? i.e., what are the columns of interest?
   
     - Be careful though with many variables - avoid just listing everything!
     
     - Simplify by describing groups of variables together
+    
+--
 
-Use examples - makes your data explicit and concrete for the audience
+__Use examples__ - makes your data explicit and concrete for the audience
 
-  - But Do NOT print out raw `R` console output!
+  - But Do __NOT__ print out raw `R` console output!
   
   - Use text or a clean formatted table (via `knitr`, [`DT`](https://rstudio.github.io/DT/), [`gt`](https://gt.rstudio.com/))
+  
+---
 
 ## Introducing and describing methods
 
@@ -51,42 +90,58 @@ Use examples - makes your data explicit and concrete for the audience
 
 - Your presentation should provide the general steps for someone to replicate your work
 
-  - e.g., Used complete-linkage hierarchical clustering with [INSERT VARIABLES], determined $K$ number of clusters by [INSERT REASON]
+  - e.g., Used complete-linkage hierarchical clustering with [INSERT VARIABLES], determined K number of clusters by [INSERT REASON]
   
   - e.g., Modeled [INSERT RESPONSE VARIABLE] as a function of [INSERT EXPLANATORY VARIABLES]
   
+--
+
 - For more complicated methods, you'll want to provide a brief review of the methodology
 
-- If introducing new methodology: walk through the steps clearly
+- If introducing new methodology: __walk through the steps clearly__
 
-- Always justify your choice of methodology
+--
+
+- __Always justify your choice of methodology__
 
   - Why you used a flexible tree-based model over linear regression
+  
+
+---
 
 ## Presenting results
 
-- Use the assertion-evidence model
+- Use the __assertion-evidence__ model
 
-- Assertion: title of the slide should be the key takeaway in brief sentence form
+- __Assertion__: title of the slide should be the key takeaway in brief sentence form
 
   - Indicates the point of the visualization or whatever means used to display the results
 
-- Evidence: the body of the slide containing the results
+- __Evidence__: the body of the slide containing the results
 
   - Display of the results in some format that is simple to explain and understand
   
-- Limit the amount of text in your Evidence portion - brief statements with important context
+--
 
-- Treat the Assertion as the title of your Evidence
+- Limit the amount of text in your __Evidence__ portion - brief statements with important context
+
+- Treat the __Assertion__ as the title of your __Evidence__
 
   - Plot titles are then redundant and not necessary with an effective assertion
+
+---
+
+## Assertion
+
+.center[__Evidence__]
+
+---
 
 ### MLB strikeout rates have been increasing throughout MLB's history
 
 ```{r lahman-example, echo = FALSE, fig.align = 'center'}
 library(tidyverse)
 library(Lahman)
-
 as_tibble(Batting) %>%
   filter(lgID %in% c("AL", "NL")) %>%
   group_by(yearID) %>%
@@ -102,43 +157,90 @@ as_tibble(Batting) %>%
   theme(strip.background = element_blank())
 ```
 
+
+--
+
 (Explain the `aes` of your graph - what is each axis, color, shape, etc referring to? And what is the unit scale?)
+
+---
 
 ## Discussion (and ending a presentation)
 
 - Conclude with a recap of the main points of your work
 
-- Then point out limitations and indicate a direction for the next steps
+--
 
-- Either end with the Discussion slide (or Acknowledgements but this is sometimes placed at the beginning)
+- Then __point out limitations__ and indicate a __direction for the next steps__
+
+--
+
+- Either end with the __Discussion__ slide (or __Acknowledgements__ but this is sometimes placed at the beginning)
 
 - Never end a presentation with lone _Thank you_ slide! 
 
-  - Want the audience to focus on the final points in your Discussion slide
+  - Want the audience to focus on the final points in your __Discussion__ slide
   
-- Include back-up Appendix slides with additional info, ready for questions
+--
 
-- Slides for References should not be displayed during your talk
+- Include back-up __Appendix__ slides with additional info, ready for questions
+
+--
+
+- Slides for __References__ should not be displayed during your talk
 
   - Their purpose is just for sharing with others
   
   - Alternative option: include references directly on slides either in text or via footnotes<sup>1</sup>
 
+  
+.footnote[
+[1] Like this...
+]  
+
+---
+
 ## Additional tips and reminders
 
-Use pauses effectively to highlight points and explain steps
+__Use pauses effectively__ to highlight points and explain steps
+
+--
 
 - Showing all of your text at once can overwhelm your audience
 
-Remember: memory overload is real!
+--
 
-- Do NOT introduce too much notation at once
+But
+--
+ don't
+--
+ be 
+--
+ ridiculous
 
-- Repetitive language and usage of words are useful and reminders for the audience
+--
+
+Remember: __memory overload is real!__
+
+- Do __NOT__ introduce too much notation at once
+
+- __Repetitive language and usage of words are useful and reminders for the audience__
 
   - Use consistent language and terminology throughout the talk
-  
+
+--
+
+__Know your audience!__
+
+
+.center[![](https://media2.giphy.com/media/uq6ILNBI6g3As/200.gif)]
+
+
+---
+class: inverse center middle
+
 # How do we make presentations?
+
+---
 
 ## Use [`xaringan`](https://slides.yihui.org/xaringan) and [`xaringanthemer`](https://pkg.garrickadenbuie.com/xaringanthemer/articles/xaringanthemer.html)
 
@@ -146,9 +248,11 @@ Remember: memory overload is real!
 
 - Create a new presentation using a template 
 
-- View in-progress slides with the Infinite Moon Reader addin for RStudio
+- View in-progress slides with the __Infinite Moon Reader__ addin for RStudio
 
 - More options with [xaringanExtra](https://pkg.garrickadenbuie.com/xaringanExtra/#/README?id=xaringanextra)!
+
+--
 
 Check out public resources:
 
@@ -160,23 +264,43 @@ Check out public resources:
   
   - And google for more [examples](https://slides.earo.me/rladiesakl20/#1)
 
+
+---
+
 ## Typography
 
 Text can be **bold**, _italic_, ~~strikethrough~~, or `inline code`.
 
 [Link to another slide](#colors).
 
+### Lorem Ipsum
+
+Dolor imperdiet nostra sapien scelerisque praesent curae metus facilisis dignissim tortor. 
+Lacinia neque mollis nascetur neque urna velit bibendum. 
+Himenaeos suspendisse leo varius mus risus sagittis aliquet venenatis duis nec.
+
+- Dolor cubilia nostra nunc sodales
+
+- Consectetur aliquet mauris blandit
+
+- Ipsum dis nec porttitor urna sed
+
+---
+name: colors
+
 ## Colors
 
-- <span style="color: var(text-color)">Text Color</span>
+- <span style="color: var(--text-color)">Text Color</span>
 
-- <span style="color: var(header-color); font-family: var(header-font-family);">Header Color</span>
+- <span style="color: var(--header-color); font-family: var(--header-font-family);">Header Color</span>
 
-- <span style="color: var(link-color)">Link Color</span>
+- <span style="color: var(--link-color)">Link Color</span>
 
-- <span style="color: var(text-bold-color); font-weight: bold;">Bold Color</span>
+- <span style="color: var(--text-bold-color); font-weight: bold;">Bold Color</span>
 
 - `inline code color`
+
+---
 
 # Big Topic or Inverse Slides `#`
 
@@ -192,21 +316,23 @@ This is a normal paragraph text. Only use header levels 1-4.
 
 ###### Definitely don't use h6 `######`
 
--
+---
 class: inverse center middle
 
 # Topic Changing Interstitial
 
+--
+
 ```
 class: inverse center middle
 ```
 
--
+---
 layout: true
 
 ## Blocks
 
--
+---
 
 ### Blockquote
 
@@ -214,7 +340,7 @@ layout: true
 >
 > When something is important enough, you do it even if the odds are not in your favor.
 
--
+---
 
 ### Code Blocks
 
@@ -236,7 +362,7 @@ var fun = function lang(l) {
 }
 ```
 
--
+---
 
 ### More R Code
 
@@ -244,60 +370,60 @@ var fun = function lang(l) {
 dplyr::starwars %>% dplyr::slice_sample(n = 4)
 ```
 
--
+---
 
 ```{r message=TRUE}
 cli::cli_alert_success("It worked!")
 ```
 
-
+--
 
 ```{r message=TRUE}
 message("Just a friendly message")
 ```
 
-
+--
 
 ```{r warning=TRUE}
 warning("This could be bad...")
 ```
 
-
+--
 
 ```{r error=TRUE}
 stop("I hope you're sitting down for this")
 ```
 
 
--
+---
 layout: true
 
 ## Tables
 
--
+---
 
 ```{r}
 tibble::as_tibble(mtcars)
 ```
 
--
+---
 
 ```{r}
 knitr::kable(head(mtcars), format = 'html')
 ```
 
--
+---
 
 ```{r}
 DT::datatable(head(mtcars), fillContainer = FALSE, options = list(pageLength = 4))
 ```
 
--
+---
 layout: true
 
 ## Lists
 
--
+---
 
 .pull-left[
 #### Here is an unordered list:
@@ -318,7 +444,7 @@ layout: true
 1.  Item four
 ]
 
--
+---
 
 ### And a nested list:
 
@@ -336,7 +462,7 @@ layout: true
   - level 2 item
 - level 1 item
 
--
+---
 
 ### Nesting an ol in ul in an ol
 
@@ -356,26 +482,26 @@ layout: true
     - level 3 item (ul)
 - level 1 item (ul)
 
--
+---
 layout: true
 
 ## Plots
 
--
+---
 
 ```{r plot-example}
 library(ggplot2)
 (g <- ggplot(mpg) + aes(hwy, cty, color = class) + geom_point())
 ```
 
--
+---
 
 ```{r plot-example-themed}
 g + xaringanthemer::theme_xaringan(text_font_size = 16, title_font_size = 18) +
   ggtitle("A Plot About Cars")
 ```
 
--
+---
 layout: false
 
 ## Square image
@@ -384,7 +510,7 @@ layout: false
 
 .footnote[GitHub Octocat]
 
--
+---
 
 ### Wide image
 
@@ -392,7 +518,7 @@ layout: false
 
 .footnote[Wide images scale to 100% slide width]
 
--
+---
 
 ## Two images
 
@@ -404,7 +530,7 @@ layout: false
 ![](https://octodex.github.com/images/dinotocat.png)
 ]
 
--
+---
 
 ## Alternatively `include_graphics`
 
@@ -412,7 +538,7 @@ layout: false
 knitr::include_graphics("http://images6.fanpop.com/image/photos/42900000/Thor-Ragnarok-2017-Loki-and-Thor-mood-compilation-thor-ragnarok-42998758-268-200.gif")
 ```
 
--
+---
 
 ### Definition lists can be used with HTML syntax.
 
@@ -427,7 +553,7 @@ knitr::include_graphics("http://images6.fanpop.com/image/photos/42900000/Thor-Ra
 <dd>Green</dd>
 </dl>
 
--
+---
 class: center, middle
 
 # Thanks!
