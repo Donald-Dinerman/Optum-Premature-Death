@@ -9,6 +9,15 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# TO-DO
+
+```{r}
+#1. Background and motivation (Makayla)
+#2. Design Xaringan Slides
+#3. Overlay gifs (can just flip to different slide)
+#4. Number the slides
+```
+
 # Overview
 
 This project will begin on Monday June 13th, and conclude with a 10-15 minute presentation on Friday, June 24th (either during the morning session from 10:30 to 12 PM or in the afternoon from 1:30 to 3 PM). The goal of this project is to practice understanding the structure of a dataset, and to practice generating and evaluating hypotheses using fundamental EDA and data visualization techniques.
@@ -55,11 +64,6 @@ AveragePrePregnancyBMI: The average pre-pregnancy BMI of the mother for the corr
 AverageNumberPrenatalVisits: The average number of prenatal visits of the mother for the corresponding group of births
 AverageIntervalSinceLastBirth: The average length of time since the last birth for the corresponding group of births
 
-```{r}
-#read data
-maternity_df = read.csv('maternity.csv')
-```
-
 # Project Start
 
 ```{r}
@@ -67,6 +71,11 @@ library(tidyverse)
 ```
 
 ## Dataset Descripition
+
+```{r}
+#read data
+maternity_df = read.csv('maternity.csv')
+```
 
 ```{r}
 library(kableExtra)
@@ -94,7 +103,7 @@ Loaded in a dataset of available domestic birth records from 2019
  - Categorical Variables: State, PriorBirthsNowDeceased, TobaccoUse, PrePregnancyDiabetes, PrePregnancyHypertension
 
  - Continuous Variables: Births, AverageMotherAge, AverageBirthWeight, AveragePrePregnancyBMI, AverageNumberPrenatalVisits,
-                         AverageIntervalSinceLastBirth
+                        
 ```
 
 ## Hypothesis
@@ -266,21 +275,36 @@ real_plot = clean_cluster_df %>%
 ```
 
 ```{r}
-#save gif
+#save real plot to overlay gif
 # library(animation)
 # 
 # saveGIF(
 #   expr = {
 #     plot(real_plot)
-#     plot(cluster_plot)
 #   },
-#   interval = 2,
+#   movie.name = "real_plot.gif"
+# )
+```
+
+```{r}
+#save gif
+
+# saveGIF(
+#   expr = {
+#     plot(cluster_plot)
+#     plot(real_plot)
+#   },
+#   interval = 4,
 #   movie.name = "stop_time_cluster.gif"
 # )
 ```
 
 ```{r}
-#display gif
+#display gifs
+#idea: overlay and display "stop_time_cluster.gif" once done explaining "real_plot.gif"
+
+knitr::include_graphics("real_plot.gif")
+
 knitr::include_graphics("stop_time_cluster.gif")
 ```
 
