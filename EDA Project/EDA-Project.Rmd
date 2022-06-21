@@ -177,7 +177,7 @@ SE is computed at the individual level (i.e., each mother is one data point).
 ```{r}
 #Hypothesis 2
 
-#Older Mothers Have More Prenatal Visits"
+#Older Mothers Have More Prenatal Visits
 maternity_df %>%
   ggplot(aes(x = AverageMotherAge, y = AverageNumberPrenatalVisits)) +
   geom_point(alpha = 0.25) +
