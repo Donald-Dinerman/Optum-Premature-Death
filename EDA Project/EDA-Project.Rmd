@@ -108,7 +108,7 @@ Loaded in a dataset of available domestic birth records from 2019
 
 ## Hypothesis
 
-1. Tobacco use reduces the child's birth weight among mother's without prior birth deaths
+1. Tobacco use is associated with reduced child birth weight among mother's without prior birth deaths.
 
 2. As the age of the mother increases, the number of prenatal visits increases.
 
@@ -148,6 +148,8 @@ for(i in 1:length(h1_df_yes)){
 }
 
 #Barplot with CI (The CI are so small bc the n is so large)
+
+#Tobacco Use is Associated with Decreased Birthweights
 h1_df %>%
   group_by(TobaccoUse) %>%
   summarise(true_count = sum(Births), 
@@ -163,46 +165,50 @@ h1_df %>%
   #coord_cartesian(ylim = c(3000, 3500)) + #Zoom in
   geom_text(aes(label = round(mean_AverageBirthWeight, 0)), vjust = -0.25) + #text label
   theme_bw() + 
-  labs(title = "", x = "Tobacco Use", y = "Average Birthweight (Grams)") #Tobacco Use is Associated with Decreased Birthweights
+  labs(title = "", x = "Tobacco Use", y = "Average Birthweight (Grams)") 
 ```
 
 ```
-This barplot supports our hypothesis that tobacco use reduces the child's birth weight among mother's without prior birth deaths. Mother's with Tobacco use birth babies approximately 213 grams lighter than mother's without tobacco use. With 3.3. million observations for mother's not using tobacco and 207,000 observations for mother's using tobacco, there is sufficient sampling to state that this difference is statistically significant (the CI intervals are super small).
+This barplot supports our hypothesis that tobacco is associated with reduced child birth weight among mother's without prior birth deaths. Mother's with Tobacco use birth babies approximately 213 grams lighter than mother's without tobacco use. With 3.3. million observations for mother's not using tobacco and 207,000 observations for mother's using tobacco, there is sufficient sampling to state that this difference is statistically significant (the CI intervals are super small).
+
+SE is computed at the individual level (i.e., each mother is one data point).
 ```
 
 ```{r}
 #Hypothesis 2
 
+#Older Mothers Have More Prenatal Visits"
 maternity_df %>%
   ggplot(aes(x = AverageMotherAge, y = AverageNumberPrenatalVisits)) +
   geom_point(alpha = 0.25) +
   geom_smooth(se = F, method = "lm") +
   theme_bw() +
-  labs(x = "Mother Age (Year)", y = "Number of Prenatal Visits", title = "") #Older Mothers Have More Prenatal Visits"
+  labs(x = "Mother Age (Year)", y = "Number of Prenatal Visits", title = "") 
 ```
 
 ```
-This scatterplot supports our hypothesis that as the age of the mother increases, the number of prenatal visits increases.
+This scatterplot supports our hypothesis that as the age of the mother increases, the number of prenatal visits increases. Observations are represented at the aggregated level (due to computational constraints).
 ```
 
 ```{r}
 df_count = filter(maternity_df, PriorBirthsNowDeceased != "Unknown", TobaccoUse != "Unknown") %>%
-  mutate(new_dead_baby = ifelse(PriorBirthsNowDeceased == "0", "None", "At least One")) %>%
-  group_by(new_dead_baby, TobaccoUse) %>%
+  mutate(new_mortality = ifelse(PriorBirthsNowDeceased == "0", "None", "At least One")) %>%
+  group_by(new_mortality, TobaccoUse) %>%
   summarise(count = sum(Births))
 
-pre_table_df = data.frame(dead_baby = c(rep("At Least One", df_count$count[1]), rep("At Least One", df_count$count[2]), 
+pre_table_df = data.frame(mortality = c(rep("At Least One", df_count$count[1]), rep("At Least One", df_count$count[2]), 
                                         rep("None", df_count$count[3]), rep("None", df_count$count[4])),
               tobacco = c(rep("No", df_count$count[1]), rep("Yes", df_count$count[2]), 
                           rep("No", df_count$count[3]), rep("Yes", df_count$count[4])))
 
-mosaicplot(table(pre_table_df$dead_baby, pre_table_df$tobacco),
+#High Tobacco Use for Mothers With at Least 1 Prior Birth Deceased
+mosaicplot(table(pre_table_df$mortality, pre_table_df$tobacco),
            shade = T,
-           main = " ", ylab = "Tobacco Use") #High Tobacco Use for Mothers With at Least 1 Prior Birth Deceased
+           main = " ", ylab = "Tobacco Use") 
 ```
 
 ```
-This visualization supports our hypothesis that tobacco use is more prevalent among mothers with at least 1 prior birth deceased. The observed counts for tobacco use for mother's with at least one birth deceased is signficantly greater than what we would expect given independence between tobacco use and number of deceased births.
+This visualization supports our hypothesis that tobacco use is more prevalent among mothers with at least 1 prior birth deceased. The observed counts for tobacco use for mother's with at least one birth deceased is signficantly greater than what we would expect given independence between tobacco use and number of deceased births. Observations are computed at the individual level (i.e., each mother is one data point).
 ```
 
 ```{r, include=F}
@@ -210,12 +216,12 @@ This visualization supports our hypothesis that tobacco use is more prevalent am
 positions = c("None", "At least One")
 
 filter(maternity_df, PriorBirthsNowDeceased != "Unknown", TobaccoUse != "Unknown") %>%
-  mutate(new_dead_baby = ifelse(PriorBirthsNowDeceased == "0", "None", "At least One")) %>%
-  group_by(new_dead_baby, TobaccoUse) %>%
+  mutate(new_mortality = ifelse(PriorBirthsNowDeceased == "0", "None", "At least One")) %>%
+  group_by(new_mortality, TobaccoUse) %>%
   summarise(count = sum(Births)) %>%
   mutate(total = sum(count),
          prop = round(count/total, 5)) %>%
-  ggplot(aes(x = new_dead_baby, y = prop, fill = TobaccoUse)) +
+  ggplot(aes(x = new_mortality, y = prop, fill = TobaccoUse)) +
   geom_col(col = "black") + 
   scale_x_discrete(limits = positions) + #set positions of bars
   scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
@@ -275,6 +281,16 @@ real_plot = clean_cluster_df %>%
 ```
 
 ```{r}
+real_plot
+
+cluster_plot
+```
+
+```
+Observations are represented at the aggregated level.
+```
+
+```{r}
 #save real plot to overlay gif
 # library(animation)
 # 
@@ -303,11 +319,9 @@ real_plot = clean_cluster_df %>%
 #display gifs
 #idea: overlay and display "stop_time_cluster.gif" once done explaining "real_plot.gif"
 
-knitr::include_graphics("real_plot.gif")
-
-knitr::include_graphics("stop_time_cluster.gif")
+# knitr::include_graphics("real_plot.gif")
+# knitr::include_graphics("stop_time_cluster.gif")
 ```
-
 
 ```{r}
 library(caret)
@@ -348,6 +362,10 @@ tibble(totalwss =
   scale_x_continuous(breaks = seq(0, 12, by = 2)) +
   labs(x = "Number of clusters K", y = "Total WSS") +
   theme_bw()
+```
+
+```
+Although the elbow plot using WSS (Within cluster Sum of Squares) suggests k = 4, we chose to select k = 2 given the context of prior deceased birth groups (e.g., "none" and "at least one").
 ```
 
 ## Final Slide
