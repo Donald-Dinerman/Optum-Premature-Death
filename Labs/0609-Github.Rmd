@@ -23,7 +23,7 @@ usethis::use_git_config(user.name = "Donald Dinerman", user.email = "ddinerma@an
 ```{r}
 #Personal Access Token: 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
 usethis::create_github_token()
-````
+```
 
 ```{r}
 #enter token (2: replace these creds)
