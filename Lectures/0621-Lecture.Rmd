@@ -284,6 +284,9 @@ nba_player_probs %>%
 ## Which players have the highest uncertainty?
 
 ```{r nba-uncertainty}
+#Uncertainty is 1 - the max value in the row of z (the prob of an obs belonging to a particular cluster)
+
+
 nba_filtered_stats %>%
   mutate(cluster = #<<
            nba_mclust$classification, #<<
