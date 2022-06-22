@@ -268,7 +268,7 @@ real_plot
 
 
 ```{r, echo = FALSE, fig.show="hold", out.width="50%"}
-real_plot #check if sizing is ok
+real_plot #check if sizing is ok, can stack them vertically instead
 
 cluster_plot
 ```
@@ -298,11 +298,5 @@ cluster_plot
 - Our clustering doesn't weigh the births within each row and rather treats each row as a single observation.
 
 **Feel free to ask any questions!**
-
-
-
-
-
-
 
 
