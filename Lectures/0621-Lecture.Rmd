@@ -221,7 +221,7 @@ library(mclust)
 
 Use the `Mclust` function to search over 1 to 9 clusters (_K_ = `G`) and the different covariance constraints (i.e. models) 
 
-```{r nba-mclust, eval = FALSE}
+```{r nba-mclust}
 nba_mclust <- Mclust(dplyr::select(nba_filtered_stats, x3pa, trb))
 ```
 
@@ -242,6 +242,16 @@ plot(nba_mclust, what = 'BIC',
 plot(nba_mclust, what = 'classification')
 ```
 
+```{r}
+plot(nba_mclust, what = "uncertainty")
+```
+
+```{r}
+nba_mclust$parameters$mean
+
+nba_mclust$parameters$variance$sigma
+```
+
 ## How do the cluster assignments compare to the positions?
 
 We can again compare the clustering assignments with player positions:
@@ -250,15 +260,11 @@ We can again compare the clustering assignments with player positions:
 table("Clusters" = nba_mclust$classification, "Positions" = nba_filtered_stats$pos)
 ```
 
--
-
 ## What about the cluster probabilities?
 
-.pull-left[
-```{r nba-probs, eval = FALSE}
+```{r nba-probs}
 nba_player_probs <- nba_mclust$z #<<
-colnames(nba_player_probs) <- 
-  paste0('Cluster ', 1:3)
+colnames(nba_player_probs) <- paste0('Cluster ', 1:3)
 
 nba_player_probs <- nba_player_probs %>%
   as_tibble() %>%
@@ -273,21 +279,11 @@ nba_player_probs %>%
   geom_histogram() +
   theme_bw() +
   facet_wrap(~ cluster, nrow = 2)
-
 ```
-]
-.pull-right[
-```{r ref.label='nba-probs', echo=FALSE}
-
-```
-]
-
--
 
 ## Which players have the highest uncertainty?
 
-.pull-left[
-```{r nba-uncertainty, eval = FALSE}
+```{r nba-uncertainty}
 nba_filtered_stats %>%
   mutate(cluster = #<<
            nba_mclust$classification, #<<
@@ -303,53 +299,9 @@ nba_filtered_stats %>%
   coord_flip() + 
   theme_bw() +
   facet_wrap(~ cluster, 
-             scales = 'free_y', nrow = 3)
-
+             scales = 'free_y', nrow = 3) +
+  labs(x = "Most Uncertain Players", y = "Uncertainty")
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
