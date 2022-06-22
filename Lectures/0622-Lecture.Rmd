@@ -1,0 +1,88 @@
+---
+title: "0622-Lecture"
+output: html_document
+date: '2022-06-22'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Supervised Learning: Model assessment vs selection
+
+What is supervised learning? 
+
+Goal: uncover associations between a set of predictor (aka independent / explanatory) variables / features and a single response (or dependent) variable
+
+- Ex: MLB records the batting average (hits / at-bats) for every player in each season. Can we accurately predict player X's batting average in year $t+1$ using their batting average in year $t$? Can we uncover meaningful relationships between other measurements (which are predictors / features) and batting average in year $t+1$ (which is the response)?
+
+- Ex: We are provided player tracking data from the NFL, all x,y coordinates of every player on the field at every tenth of the second. Can we predict how far a ball-carrier will go at any given moment they have the football?
+
+## Examples of statistical learning methods / algorithms
+
+You are probably already familiar with statistical learning - even if you did not know what the phrase meant before
+
+Examples of statistical learning algorithms include:
+
+- Generalized linear models (GLMs) and penalized versions (Lasso, elastic net)
+
+- Smoothing splines, Generalized additive models (GAMs)
+
+- Decision trees and its variants (e.g., random forest, boosting)
+
+- Neural networks (e.g., convolutional neural networks)
+
+Two main types of estimation given values for predictors:
+
+- Regression models: estimate _average_ value of response
+
+- Classification models: determine _the most likely_ class of a set of discrete response variable classes
+
+## Which method should I use in my analysis?
+
+Depends on your goal - the big picture: inference vs prediction
+
+Let $Y$ be the response variable, and $X$ be the predictors, then the learned model will take the form:
+
+$$
+\hat{Y}=\hat{f}(X)
+$$
+
+- Care about the details of $\hat{f}(X)$? $\Rightarrow$ You want to perform statistical inference
+
+- Fine with treating $\hat{f}(X)$ as a obscure/mystical machine? $\Rightarrow$ Your interest is prediction
+
+Any algorithm can be used for prediction, however options are limited for inference
+
+Active area of research on using more mystical models for statistical inference
+
+### Model flexibility vs interpretability
+
+Generally speaking: tradeoff between a model's _flexibility_ (i.e. how "wiggly" it is) and how interpretable it is
+
+- Simpler the parametric form of the model $\Rightarrow$ the easier it is to interpret
+
+- Hence why linear regression is popular in practice
+
+```{r out.width='50%', fig.align='center'}
+library(tidyverse)
+library(magick)
+
+image_read("http://www.stat.cmu.edu/~pfreeman/flexibility.png") %>% print()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
