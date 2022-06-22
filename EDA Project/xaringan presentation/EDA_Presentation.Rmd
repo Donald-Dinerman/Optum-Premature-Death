@@ -49,6 +49,9 @@ maternity_df = read.csv("C:/Undergraduate/R/Optum-Bridge-Summer-Research/EDA Pro
 library(kableExtra)
 library(tidyverse)
 
+#rename to shorter colnames
+maternity_df = rename(maternity_df, BirthsDeceased = PriorBirthsNowDeceased, Diabetes = PrePregnancyDiabetes, Hypertension = PrePregnancyHypertension)
+
 main_tab = maternity_df %>% 
   select(State:Births) %>% 
   slice(c(1, 55, 99, 175, 252)) %>%  
@@ -60,8 +63,8 @@ main_tab = maternity_df %>%
 #Hypothesis 1
 
 #create dataset with counterfactual
-h1_df = filter(maternity_df, TobaccoUse %in% c("Yes", "No"), PrePregnancyDiabetes == "No", PrePregnancyHypertension == "No",
-               PriorBirthsNowDeceased == "0")
+h1_df = filter(maternity_df, TobaccoUse %in% c("Yes", "No"), Diabetes == "No", Hypertension == "No",
+               BirthsDeceased == "0")
 
 #Calculate standard deviation in group using rep(AverageBirthWeight, births)
 h1_df_no = filter(h1_df, TobaccoUse == "No")
@@ -102,7 +105,7 @@ h1_plot = h1_df %>%
   ggplot(aes(x = TobaccoUse, y = mean_AverageBirthWeight)) +
   geom_col(col = "black", fill = "steelblue") +
   #geom_errorbar(aes(ymin = lower,ymax = upper), color = "red") + #CI
-  #coord_cartesian(ylim = c(3000, 3500)) + #Zoom in
+  coord_cartesian(ylim = c(0, 3600)) + #Zoom in
   geom_text(aes(label = round(mean_AverageBirthWeight, 0)), vjust = -0.25) + #text label
   theme_bw() + 
   labs(title = "", x = "Tobacco Use", y = "Average Birthweight (Grams)") 
@@ -121,8 +124,8 @@ h2_plot = maternity_df %>%
 ```
 
 ```{r, echo=F}
-df_count = filter(maternity_df, PriorBirthsNowDeceased != "Unknown", TobaccoUse != "Unknown") %>%
-  mutate(new_mortality = ifelse(PriorBirthsNowDeceased == "0", "None", "At least One")) %>%
+df_count = filter(maternity_df, BirthsDeceased != "Unknown", TobaccoUse != "Unknown") %>%
+  mutate(new_mortality = ifelse(BirthsDeceased == "0", "None", "At least One")) %>%
   group_by(new_mortality, TobaccoUse) %>%
   summarise(count = sum(Births))
 
@@ -130,24 +133,20 @@ pre_table_df = data.frame(mortality = c(rep("At Least One", df_count$count[1]), 
                                         rep("None", df_count$count[3]), rep("None", df_count$count[4])),
               tobacco = c(rep("No", df_count$count[1]), rep("Yes", df_count$count[2]), 
                           rep("No", df_count$count[3]), rep("Yes", df_count$count[4])))
-
 ```
-
-
-
 
 ```{r, echo=F}
 #An alternative: Using context of baby deceased # to infer k (e.g., k = 2 bc 2 groups of deceased births)
 library(dslabs)
 
 #remove NA from df
-cluster_df = dplyr::select(maternity_df, PriorBirthsNowDeceased, AveragePrePregnancyBMI, AverageBirthWeight) %>%  drop_na()
+cluster_df = dplyr::select(maternity_df, BirthsDeceased, AveragePrePregnancyBMI, AverageBirthWeight) %>%  drop_na()
 
 #std cont var
 clean_cluster_df <- cluster_df %>%
   mutate(std_BMI = as.numeric(scale(AveragePrePregnancyBMI, center = TRUE, scale = TRUE)), #<<
          std_weight = as.numeric(scale(AverageBirthWeight, center = TRUE, scale = TRUE)),
-         update_deceased = ifelse(PriorBirthsNowDeceased == "0", "None", "At Least One")) #<<
+         update_deceased = ifelse(BirthsDeceased == "0", "None", "At Least One")) #<<
 
 #K-means++
 library(flexclust)
@@ -193,25 +192,38 @@ real_plot = clean_cluster_df %>%
 ## The Maternal Health Care Disparities Dataset
 
 
-```{r,echo=F}
-main_tab
-```
+Loaded in a dataset of available domestic birth records from 2019
 
+ - There's 3.7M observations aggregated into 842 rows
+
+ - Rows represent unique states of births deceased, tobacco use, diabetes, and hypertension combinations
+
+ - Categorical Variables: State, BirthsDeceased, TobaccoUse, Diabetes, Hypertension
+
+ - Continuous Variables: Births, AverageMotherAge, AverageBirthWeight, AverageBMI, AveragePrenatalVisits
+ 
+```{r,echo=F, fig.align = 'center', fig.width = 8}
+main_tab #better fit, less wide, bottom of slide (shorten var names on slide, and in code for better fit?)
+```
+ 
 ---
 
 ## Hypotheses
 
+1. Tobacco use is associated with reduced child birth weight among mother's without prior birth deaths.
 
+2. As the age of the mother increases, the number of prenatal visits increases.
 
-
+3. Tobacco use is more prevalent among mothers with at least 1 prior birth deceased.
 
 ---
 
 ## Tobacco Use is Associated with Decreased Birthweights
 
 
-
-
+```{r, echo = F, fig.align = 'center'}
+h1_plot
+```
 
 ---
 
@@ -219,7 +231,9 @@ main_tab
 ## Older Mothers Have More Prenatal Visits
 
 
-
+```{r, echo = F, fig.align = 'center'}
+h2_plot
+```
 
 ---
 
@@ -230,7 +244,7 @@ main_tab
 #High Tobacco Use for Mothers With at Least 1 Prior Birth Deceased
 mosaicplot(table(pre_table_df$mortality, pre_table_df$tobacco),
            shade = T,
-           main = " ", ylab = "Tobacco Use")
+           main = " ", ylab = "Tobacco Use") 
 ```
 
 
@@ -254,7 +268,7 @@ real_plot
 
 
 ```{r, echo = FALSE, fig.show="hold", out.width="50%"}
-real_plot
+real_plot #check if sizing is ok
 
 cluster_plot
 ```
