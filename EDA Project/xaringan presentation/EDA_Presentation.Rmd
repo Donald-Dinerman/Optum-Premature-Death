@@ -1,6 +1,6 @@
 ---
 title: "Exploratory Data Analysis: Maternity"
-subtitle: "Donald Dinerman, [holder], [holder]"  
+subtitle: "Donald Dinerman <br>Masara Greenidge <br>Makayla Moore"  
 date: 'June 24th, 2022'
 output:
   xaringan::moon_reader:
@@ -10,7 +10,7 @@ output:
       highlightStyle: github
       highlightLines: true
       ratio: 16:9
-      countIncrementalSlides: true
+      countIncrementalSlides: false
 ---
 
 ```{r setup, include=FALSE}
@@ -166,8 +166,8 @@ cluster_plot = clean_cluster_df %>%
   geom_point() + 
   ggthemes::scale_color_colorblind() +
   theme_bw() +
-  theme(legend.position = "bottom") +
-  labs(color = "Cluster", x = "Mother's BMI", y = "Birth Weight (Grams)")
+  theme(legend.position = "right") +
+  labs(color = "Cluster                 ", x = "Mother's BMI", y = "Birth Weight (Grams)")
 
 real_plot = clean_cluster_df %>%
   ggplot(aes(x = AveragePrePregnancyBMI, y = AverageBirthWeight,
@@ -175,22 +175,11 @@ real_plot = clean_cluster_df %>%
   geom_point() +
   ggthemes::scale_color_colorblind() +
   theme_bw() +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "right") +
   labs(color = "Deceased Births #", x = "Mother's BMI", y = "Birth Weight (Grams)")
 ```
 
-
-## Background and Motivation
-
-
-
-
-
----
-
-
 ## The Maternal Health Care Disparities Dataset
-
 
 Loaded in a dataset of available domestic birth records from 2019
 
@@ -240,11 +229,11 @@ h2_plot
 ## High Tobacco Use for Mothers With at Least 1 Prior Birth Deceased
 
 
-```{r, echo = F, fig.align = 'center'}
+```{r, echo = F, fig.align = 'center', fig.height = 4.6}
 #High Tobacco Use for Mothers With at Least 1 Prior Birth Deceased
 mosaicplot(table(pre_table_df$mortality, pre_table_df$tobacco),
            shade = T,
-           main = " ", ylab = "Tobacco Use") 
+           main = " ", ylab = "Tobacco Use")
 ```
 
 
@@ -267,18 +256,13 @@ real_plot
 ## Kmeans++ Captures Natural Clusters 
 
 
-```{r, echo = FALSE, fig.show="hold", out.width="50%"}
-real_plot #check if sizing is ok, can stack them vertically instead
-
-cluster_plot
+```{r, echo = FALSE, fig.align='center', fig.height=2}
+real_plot #check if sizing is ok, can stack them vertically instead, out.width="50%"
 ```
 
-- Accuracy : 60%
-
-
-
-
-
+```{r, echo = FALSE, fig.align='center', fig.height=2}
+cluster_plot
+```
 
 ---
 

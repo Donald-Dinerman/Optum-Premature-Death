@@ -16,7 +16,7 @@ class: center, middle, inverse, title-slide
 # Exploratory Data Analysis: Maternity
 ]
 .subtitle[
-## Donald Dinerman, [holder], [holder]
+## Donald Dinerman <br>Masara Greenidge <br>Makayla Moore
 ]
 .date[
 ### June 24th, 2022
@@ -46,30 +46,27 @@ class: center, middle, inverse, title-slide
 
 
 
-
-
-
-
-## Background and Motivation
-
-
-
-
-
----
-
-
 ## The Maternal Health Care Disparities Dataset
 
 
+Loaded in a dataset of available domestic birth records from 2019
+
+ - There's 3.7M observations aggregated into 842 rows
+
+ - Rows represent unique states of births deceased, tobacco use, diabetes, and hypertension combinations
+
+ - Categorical Variables: State, BirthsDeceased, TobaccoUse, Diabetes, Hypertension
+
+ - Continuous Variables: Births, AverageMotherAge, AverageBirthWeight, AverageBMI, AveragePrenatalVisits
+ 
 &lt;table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;"&gt;
  &lt;thead&gt;
   &lt;tr&gt;
    &lt;th style="text-align:left;"&gt; State &lt;/th&gt;
-   &lt;th style="text-align:left;"&gt; PriorBirthsNowDeceased &lt;/th&gt;
+   &lt;th style="text-align:left;"&gt; BirthsDeceased &lt;/th&gt;
    &lt;th style="text-align:left;"&gt; TobaccoUse &lt;/th&gt;
-   &lt;th style="text-align:left;"&gt; PrePregnancyDiabetes &lt;/th&gt;
-   &lt;th style="text-align:left;"&gt; PrePregnancyHypertension &lt;/th&gt;
+   &lt;th style="text-align:left;"&gt; Diabetes &lt;/th&gt;
+   &lt;th style="text-align:left;"&gt; Hypertension &lt;/th&gt;
    &lt;th style="text-align:right;"&gt; Births &lt;/th&gt;
   &lt;/tr&gt;
  &lt;/thead&gt;
@@ -116,22 +113,23 @@ class: center, middle, inverse, title-slide
   &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
-
+ 
 ---
 
 ## Hypotheses
 
+1. Tobacco use is associated with reduced child birth weight among mother's without prior birth deaths.
 
+2. As the age of the mother increases, the number of prenatal visits increases.
 
-
+3. Tobacco use is more prevalent among mothers with at least 1 prior birth deceased.
 
 ---
 
 ## Tobacco Use is Associated with Decreased Birthweights
 
 
-
-
+&lt;img src="EDA_Presentation_files/figure-html/unnamed-chunk-8-1.png" width="100%" style="display: block; margin: auto;" /&gt;
 
 ---
 
@@ -139,14 +137,14 @@ class: center, middle, inverse, title-slide
 ## Older Mothers Have More Prenatal Visits
 
 
-
+&lt;img src="EDA_Presentation_files/figure-html/unnamed-chunk-9-1.png" width="100%" style="display: block; margin: auto;" /&gt;
 
 ---
 
 ## High Tobacco Use for Mothers With at Least 1 Prior Birth Deceased
 
 
-&lt;img src="EDA_Presentation_files/figure-html/unnamed-chunk-8-1.png" width="100%" style="display: block; margin: auto;" /&gt;
+&lt;img src="EDA_Presentation_files/figure-html/unnamed-chunk-10-1.png" width="100%" style="display: block; margin: auto;" /&gt;
 
 
 
@@ -154,7 +152,7 @@ class: center, middle, inverse, title-slide
 ## Natural Clusters in the Data
 
 
-&lt;img src="EDA_Presentation_files/figure-html/unnamed-chunk-9-1.png" width="100%" /&gt;
+&lt;img src="EDA_Presentation_files/figure-html/unnamed-chunk-11-1.png" width="100%" /&gt;
 
 
 
@@ -166,14 +164,9 @@ class: center, middle, inverse, title-slide
 ## Kmeans++ Captures Natural Clusters 
 
 
-&lt;img src="EDA_Presentation_files/figure-html/unnamed-chunk-10-1.png" width="50%" /&gt;&lt;img src="EDA_Presentation_files/figure-html/unnamed-chunk-10-2.png" width="50%" /&gt;
+&lt;img src="EDA_Presentation_files/figure-html/unnamed-chunk-12-1.png" width="100%" style="display: block; margin: auto;" /&gt;
 
-- Accuracy : 60%
-
-
-
-
-
+&lt;img src="EDA_Presentation_files/figure-html/unnamed-chunk-13-1.png" width="100%" style="display: block; margin: auto;" /&gt;
 
 ---
 
@@ -186,19 +179,17 @@ class: center, middle, inverse, title-slide
 
 - Among mother's with at least 1 prior birth deceased, approximately 11% used tobacco while only 6% of mother's without prior birth deaths used tobacco products.
 
+--
+
 ### Limitations
 
 - We did not perform any statistical tests (e.g., t-test) to compare group averages, so our conclusions are purely based on visualizations.
 
 - Our clustering doesn't weigh the births within each row and rather treats each row as a single observation.
 
+--
+
 **Feel free to ask any questions!**
-
-
-
-
-
-
 
 
     </textarea>
@@ -209,7 +200,7 @@ class: center, middle, inverse, title-slide
 "highlightStyle": "github",
 "highlightLines": true,
 "ratio": "16:9",
-"countIncrementalSlides": true
+"countIncrementalSlides": false
 });
 if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
   window.dispatchEvent(new Event('resize'));
