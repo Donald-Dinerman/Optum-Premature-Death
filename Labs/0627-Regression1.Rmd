@@ -1,0 +1,302 @@
+---
+title: "Linear Regression Lab 1"
+date: "June 27th, 2022"
+output: html_document
+---
+
+## Goals
+
+We will briefly review linear modeling, focusing on building and assessing linear models in R. We have four main goals in this lab:
+
++ use exploratory data analysis (EDA) and visualization to determine a) whether two variables have a linear relationship, and b) among a set of explanatory variables, which one(s) seem like the best candidates for predicting a given output variable.
+
++ fit and interpret simple regression models,
+
++ look at diagnostic plots to determine whether a linear model is a good fit for our data,
+
++ assess our fitted linear models.
+
+## Data
+
+Execute the following code chunk to load the heart disease dataset we worked with before:
+
+```{r init_data, warning = FALSE, message = FALSE}
+library(tidyverse)
+heart_disease <- read_csv("http://www.stat.cmu.edu/cmsac/sure/2022/materials/data/health/intro_r/heart_disease.csv")
+```
+
+This dataset consists of 788 heart disease patients (608 women, 180 men). Your goal is to predict the `Cost` column, which corresponds to the patient's total cost of claims by subscriber (i.e., `Cost` is the response variable). You have access to the following explanatory variables:
+
++ `Age`: Age of subscriber (years)
++ `Gender`: Gender of subscriber
++ `Interventions`: Total number of interventions or procedures carried out
++ `Drugs`: Categorized number of drugs prescribed: 0 if none, 1 if one, 2 if more than one
++ `ERVisit`: Number of emergency room visits
++ `Complications`: Whether or not the subscriber had complications: 1 if yes, 0 if no
++ `Comorbidities`: Number of other diseases that the subscriber had
++ `Duration`: Number of days of duration of treatment condition
+
+## Exercises
+
+### 1. __EDA__
+
+Spend time exploring the dataset, to visually assess which of the __explanatory__ variables listed above is most associated with our response `Cost`. Create scatterplots between the response and each __continuous__ explanatory variable (either `Interventions`, `ERVist`, `Comorbidities`, or `Duration`). __Do any of the relationship appear to be linear?__ Describe the direction and strength of the association between the explanatory and response variables.
+
+In your opinion, __which of the possible continuous explanatory variables displays the strongest relationship with cost__?
+
+```{r}
+library(GGally)
+
+gg_df = heart_disease %>% dplyr::select(c(Cost, Interventions, ERVisit, Comorbidities, Duration))
+ggpairs(gg_df)
+```
+
+```
+The relationship between cost and interventions is most linear and they are strongly positively correlated (cor = 0.727).
+
+The relationship between cost and ERVisit is roughly linear with significant variation about low costs and they are moderately positively correlated (cor = 0.377).
+
+The relationship between cost and Comorbidities is not linear and they are weakly positively correlated (cor = 0.146).
+
+The relationship between cost and Duration is not linear and looks relatively like a random scatter, the variables are also weakly positively correlated (cor = 0.176).
+
+Interventions displays the strongest relationship with costs and the most linear.
+```
+
+### 2. __Fit a simple linear model__
+
+Now that you've performed some EDA, it's time to actually fit some linear models to the data. Start the variable you think displays the strongest relationship with the response variable. __Update the following code by replacing INSERT_VARIABLE with your selected variable, and run to fit the model__:
+
+```{r, eval = FALSE}
+init_cost_lm <- lm(Cost ~ Interventions, data = heart_disease)
+```
+
+Before check out the `summary()` of this model, __you need to check the diagnostics__ to see if it meets the necessary assumptions. To do this you can try running `plot(init_cost_lm)` in the console (what happens?). Equivalently, another way to make the same plots but with `ggplot2` perks is with the [`ggfortify`](https://cran.r-project.org/web/packages/ggfortify/vignettes/plot_lm.html) package by running the following code:
+
+```{r, eval = FALSE}
+library(ggfortify)
+
+autoplot(init_cost_lm) +
+  theme_bw()
+```
+
+The first plot is __residuals vs. fitted__: this plot should NOT display any clear patterns in the data, no obvious outliers, and be symmetric around the horizontal line at zero. The smooth line provided is just for reference to see how the residual average changes. __Do you see any obvious patterns in your plot for this model?__
+
+```
+There are three obvious outliers, a violation of homoscedasticity as there is not equal spread about residuals = 0, and there is a pattern of a downward slooping line of residuals between fitted values of 0 and 10,000.
+```
+
+The second plot is a [Q-Q plot](http://www.stat.cmu.edu/~cshalizi/TALR/TALR.pdf) (p. 93).  Without getting too much into the math behind them, __the closer the observations are to the dashed reference line, the better your model fit is.__  It is bad for the observations to diverge from the dashed line in a systematic way - that means we are violating the assumption of normality discussed in lecture. __How do your points look relative to the dashed reference line?__
+
+```
+The points significantly deviate from the diagnol at the right tail enough for there to be a violation of normality (note: points tend to slightly deviate from the diagnol at the tails).
+```
+
+The third plot looks at the square root of the absolute value of the standardized residiuals.  We want to check for homoskedascity of errors (equal, constant variance).  __If we did have constant variance, what would we expect to see?__ __What does your plot look like?__
+
+```
+If we had constant variance, we would expect to see a fitted line with slope = 0 and the points would be randomly spread about this fitted line. Our plot doesn't look like this and there is a clear positive slope in the fitted line.
+```
+
+The fourth plot is residuals vs. leverage which helps us identify __influential__ points. __Leverage__ quanitifies the influence the observed response for a particular observation has on its predicted value, i.e. if the leverage is small then the observed response has a small role in the value of its predicted response, while a large leverage indicates the observed response plays a large role in the predicted response. Its a value between 0 and 1, where the sum of all leverage values equals the number of coefficients (including the intercept). Specifically the leverage for observation $i$ is computed as:
+
+$$h_{ii} = \frac{1}{n} + \frac{(x_i - \bar{x})^2}{\sum_i^n (x_i - \bar{x})^2}$$
+where $\bar{x}$ is the average value for variable $x$ across all observations. [See page 191 for more details on leverage and the regression hat matrix](http://www.stat.cmu.edu/~cshalizi/TALR/TALR.pdf). We're looking for points in the upper right or lower right corners, where dashed lines for [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) values would indicate potential outlier points that are displaying too much influence on the model results. __Do you observed any such influential points in upper or lower right corners?__
+
+```
+Yes; I observe influential points in the upper and lower right corners. This indicates that there are potential outlier points that are having too much impact on the model's results.
+```
+
+__What is your final assessment of the diagnostics, do you believe all assumptions are met? Any potential outlier observations to remove?__
+
+```
+No; I believe Homoscedasticity and normality is violated, furthermore there are outlier points that may be exerting too much influence on our linear regression model.
+```
+
+### 3. __Transform the `Cost` variable__
+
+An obvious result from looking at the residual diagnostics above is that we are clearly violating the assumption of Normality. __Why do you think we're violating this assumption?__ (HINT: Display a histogram of the `Cost` variable.)
+
+```{r}
+ggplot(heart_disease, aes(Cost)) +
+  geom_histogram(col = "black", fill = "steelblue") +
+  theme_bw() +
+  labs(x = "Cost ($)", y = "Count")
+```
+
+```
+We are violating the normality assumption that the residuals should follow a normal distribution because the response variable, Cost, is heavily skewed to the right.
+```
+
+One way of addressing this concern is to apply a transformation to the response variable, in this case `Cost`. A common transformation for any type of dollar amount is to use the `log()` transformation. Run the following code chunk to create a new `log_cost` variable that we will use for the remainder of the lab. 
+
+```{r, eval = FALSE}
+heart_disease <- heart_disease %>%
+  mutate(log_cost = log(Cost + 1))
+
+min(heart_disease$Cost)
+
+log(0)
+```
+
+__Why did we need to `+ 1` before taking the `log()`?__ (HINT: Look at the minimum of `Cost`.) Now make another histogram, this time for the new `log_cost` variable - what happened to the distribution?
+
+```{r}
+ggplot(heart_disease, aes(log_cost)) +
+  geom_histogram(col = "black", fill = "steelblue") +
+  theme_bw() +
+  labs(x = "Observed log(Cost + 1)", y = "Count")
+```
+
+```
+We need to `+ 1` before taking the `log()` because the minimum of cost is zero and the log of zero is negative Inf.
+
+After plotting the log of cost we can see the distribution is not skewed and looks a lot more like a normal distribution.
+```
+
+### 4. __Assess the model summary__
+
+Now fit the same model as before using the following code chunk. __Update the following code by replacing INSERT_VARIABLE with your selected variable, and run to fit the model__:
+
+```{r, eval = FALSE}
+log_cost_lm <- lm(log_cost ~ Interventions, data = heart_disease)
+```
+
+Following the example in lecture, interpret the results from the `summary()` function on your initial model. __Do you think there is sufficient evidence to reject the null hypothesis that the coefficient is 0? What is the interpretation of the $R^2$ value?__
+
+```{r}
+summary(log_cost_lm)
+```
+### HELP FINISH INTERPRETATIONS
+```
+$Beta_0$: 5.19 --> 
+
+$Beta_1$: 0.24 --> 
+
+There is sufficient evidence to reject the null hypothesis that the coefficient is 0 at alpha = 0.01 because the p-value is <2e-16.
+
+48.7% of the variability observed in the log of cost variable is explained by the regression model.
+```
+
+Compare the square root of the raw (unadjusted) $R^2$ of your linear model to the correlation between that explanatory variable and the response using the `cor()` function (e.g., `cor(heart_disease$INSERT_VARIABLE, heart_disease$log_cost)` - but replace `INSERT_VARIABLE` with your variable). __What do you notice?__
+
+```{r}
+cor(heart_disease$Interventions, heart_disease$log_cost)
+```
+### HELP What's to notice
+```
+I notice that...
+```
+
+To assess the fit of a linear model, we can also plot the predicted values vs the actual values, to see how closely our predictions align with reality, and to decide whether our model is making any systematic errors. Execute the following code chunk to show the actual log(`Cost`) against our model's predictions
+
+```{r, eval = FALSE}
+heart_disease %>%
+  mutate(model_preds = predict(log_cost_lm)) %>%
+  ggplot(aes(x = model_preds, y = log_cost)) +
+  geom_point(alpha = 0.75) +
+  geom_abline(slope = 1, intercept = 0,
+              linetype = "dashed", color = "red") +
+  theme_bw() +
+  labs(x = "Predictions", y = "Observed log(Cost + 1)")
+```
+
+### 5. __Repeat steps 2 and 3 above for each of the different continuous variables__
+
+Which of the variables do you think is the most appropriate variable for modeling the cost?
+
+```{r}
+heart_disease %>% 
+  dplyr::select(c(log_cost, Interventions, ERVisit, Comorbidities, Duration)) %>%
+  ggpairs()
+```
+
+
+```{r}
+#Interventions
+autoplot(log_cost_lm) +
+  theme_bw()
+
+#ERVisit
+log_cost_lm_er <- lm(log_cost ~ ERVisit, data = heart_disease)
+
+autoplot(log_cost_lm_er) +
+  theme_bw()
+
+#Comorbidities
+log_cost_lm_co <- lm(log_cost ~ Comorbidities, data = heart_disease)
+
+autoplot(log_cost_lm_co) +
+  theme_bw()
+
+#Duration
+log_cost_lm_du <- lm(log_cost ~ Duration, data = heart_disease)
+
+autoplot(log_cost_lm_du) +
+  theme_bw()
+```
+
+```
+Based on modeling assumptions, the most appropriate variable for modeling the cost is Interventions. This predictor has the most predictive capabilities for log of cost compared to the other explanatory variables and with the exception of outliers, there is not a significant violation of the linear regression modeling assumptions.
+```
+
+### 6. __Include multiple covariates in your regression__
+
+Repeat steps 2 and 3 above but including more than one variable in your model. You can easily do this in the `lm()` function by adding another variable to the formula with the `+` operator as so (but just replace the `INSERT_VARIABLE_X` parts):
+
+### HELP
+```{r eval = FALSE}
+#how to program quick combination function
+var = c("log_cost ~ Interventions",
+        "log_cost ~ Interventions + Duration",
+        "log_cost ~ Interventions + Duration + Comorbidities",
+        "log_cost ~ Interventions + Duration + Comorbidities + ERVisit",
+        "log_cost ~ Duration",
+        "log_cost ~ Duration + Comorbidities",
+        "log_cost ~ Duration + Comorbidities + ERVisit",
+        "log_cost ~ Comorbidities",
+        "log_cost ~ Comorbidities + ERVisit",
+        "log_cost ~ ERVisit")
+        
+hold = NULL
+for(i in 1:length(var)){
+  
+  reg = as.formula(var[i]) %>% lm(., data = heart_disease)
+  
+  stat = summary(reg)$adj.r.squared
+  
+  hold[i] = stat
+}
+
+best_combo = var[which.max(hold)] #equation with highest adj.r.squared
+
+multi_cost_lm <- lm(as.formula(best_combo), 
+                   data = heart_disease)
+
+summary(multi_cost_lm) #$adj.r.squared
+```
+
+__Experiment with different sets of the continuous variables__. What sets of continuous variables do you think models log(`Cost`) best? (Remember to use the __Adjusted $R^2$__ when comparing models that have different numbers of variables).
+
+Beware collinearity! Load the `car` library (install it if necessary!) and use the `vif()` function to check for possible (multi)collinearity. The `vif()` function computes the __variance inflation factor (VIF)__ where for predictor $x_j$ for $j \in 1,\dots, p$:
+
+$$
+VIF_j = \frac{1}{1 - R^2_j}
+$$
+
+where $R^2_j$ is the $R^2$ from a variable with variable $x_j$ as the response and the other $p-1$ predictors as the explanatory variables. VIF values close to 1 indicate the variable is not correlated with other predictors, while VIF values over 5 indicate strong presence of collinearity. If present, remove a variable with VIF over 5, and redo the fit. Rinse, lather, and repeat until the `vif()` outputs are all less than 5. The follow code chunk displays an example of using this function:
+
+```{r vif,eval = FALSE}
+library(car)
+vif(multi_cost_lm)
+```
+
+```
+Given that all the VIF scores are relatively close to 1, there does not appear to be strong evidence of collinearity among predictor variables. Therefore, a model with all four continuous predictor variables best models the response (log of cost) because it has the largest adjusted R^2 compared to all other combinations of predictors.
+```
+
+## Tomorrow
+
+Tomorrow's lab will focus on categorical variables, interactions, and holdout data predictions.
+
+
