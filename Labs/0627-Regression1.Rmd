@@ -174,7 +174,6 @@ lg_sum$coefficients[1,1] %>% exp() #beta 0
 ((lg_sum$coefficients[2,1] %>% exp()) - 1 )*100 #beta 1
 ```
 
-### HELP CHECK INTERPRETATIONS
 ```
 $Beta_0$: 5.19 --> The patient's total cost of claims is $178.85 when the number of interventions carried out is zero.
 
@@ -253,31 +252,43 @@ Based on modeling assumptions, the most appropriate variable for modeling the co
 
 Repeat steps 2 and 3 above but including more than one variable in your model. You can easily do this in the `lm()` function by adding another variable to the formula with the `+` operator as so (but just replace the `INSERT_VARIABLE_X` parts):
 
-### HELP
-```{r eval = T}
-#how to program quick combination function
-var = c("log_cost ~ Interventions",
-        "log_cost ~ Interventions + Duration",
-        "log_cost ~ Interventions + Duration + Comorbidities",
-        "log_cost ~ Interventions + Duration + Comorbidities + ERVisit",
-        "log_cost ~ Duration",
-        "log_cost ~ Duration + Comorbidities",
-        "log_cost ~ Duration + Comorbidities + ERVisit",
-        "log_cost ~ Comorbidities",
-        "log_cost ~ Comorbidities + ERVisit",
-        "log_cost ~ ERVisit")
-        
-hold = NULL
-for(i in 1:length(var)){
+
+```{r}
+#Test reg combo func
+b = c(0,1)
+
+#create combo grid
+test = expand.grid(Interventions = b, Duration = b, Comorbidities = b, ERVisit = b) %>% 
+  arrange(desc(Interventions), desc(Duration), desc(Comorbidities), desc(ERVisit))
+
+#replace 1 with appropriate var names
+test2 = test %>% 
+  mutate(Interventions = ifelse(Interventions == 1, "Interventions", "0"),
+         Duration = ifelse(Duration == 1, "Duration", "0"),
+         Comorbidities = ifelse(Comorbidities == 1, "Comorbidities", "0"),
+         ERVisit = ifelse(ERVisit == 1, "ERVisit", "0"))
+
+#remove row with all zero inputs
+max_i = nrow(test2) - 1 
+
+#Intialize vectors
+hold = NULL 
+rem_zero = NULL
+
+for(i in 1:max_i){
   
-  reg = as.formula(var[i]) %>% lm(., data = heart_disease)
+  hold_comb = paste("log_cost", "~", paste(test2[i,], collapse=" + "))
+  
+  rem_zero[i] = gsub(pattern = " 0 \\+", replacement = "", hold_comb) %>% gsub(pattern = " \\+ 0", replacement = "", hold_comb)
+  
+  reg = as.formula(rem_zero[i]) %>% lm(., data = heart_disease)
   
   stat = summary(reg)$adj.r.squared
   
   hold[i] = stat
 }
 
-best_combo = var[which.max(hold)] #equation with highest adj.r.squared
+best_combo = rem_zero[which.max(hold)] #equation with highest adj.r.squared
 
 multi_cost_lm <- lm(as.formula(best_combo), 
                    data = heart_disease)
