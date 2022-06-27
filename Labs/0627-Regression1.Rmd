@@ -67,13 +67,13 @@ Interventions displays the strongest relationship with costs and the most linear
 
 Now that you've performed some EDA, it's time to actually fit some linear models to the data. Start the variable you think displays the strongest relationship with the response variable. __Update the following code by replacing INSERT_VARIABLE with your selected variable, and run to fit the model__:
 
-```{r, eval = FALSE}
+```{r, eval = T}
 init_cost_lm <- lm(Cost ~ Interventions, data = heart_disease)
 ```
 
 Before check out the `summary()` of this model, __you need to check the diagnostics__ to see if it meets the necessary assumptions. To do this you can try running `plot(init_cost_lm)` in the console (what happens?). Equivalently, another way to make the same plots but with `ggplot2` perks is with the [`ggfortify`](https://cran.r-project.org/web/packages/ggfortify/vignettes/plot_lm.html) package by running the following code:
 
-```{r, eval = FALSE}
+```{r, eval = T}
 library(ggfortify)
 
 autoplot(init_cost_lm) +
@@ -130,7 +130,7 @@ We are violating the normality assumption that the residuals should follow a nor
 
 One way of addressing this concern is to apply a transformation to the response variable, in this case `Cost`. A common transformation for any type of dollar amount is to use the `log()` transformation. Run the following code chunk to create a new `log_cost` variable that we will use for the remainder of the lab. 
 
-```{r, eval = FALSE}
+```{r, eval = T}
 heart_disease <- heart_disease %>%
   mutate(log_cost = log(Cost + 1))
 
@@ -158,7 +158,7 @@ After plotting the log of cost we can see the distribution is not skewed and loo
 
 Now fit the same model as before using the following code chunk. __Update the following code by replacing INSERT_VARIABLE with your selected variable, and run to fit the model__:
 
-```{r, eval = FALSE}
+```{r, eval = T}
 log_cost_lm <- lm(log_cost ~ Interventions, data = heart_disease)
 ```
 
@@ -190,7 +190,7 @@ I notice that...
 
 To assess the fit of a linear model, we can also plot the predicted values vs the actual values, to see how closely our predictions align with reality, and to decide whether our model is making any systematic errors. Execute the following code chunk to show the actual log(`Cost`) against our model's predictions
 
-```{r, eval = FALSE}
+```{r, eval = T}
 heart_disease %>%
   mutate(model_preds = predict(log_cost_lm)) %>%
   ggplot(aes(x = model_preds, y = log_cost)) +
@@ -245,7 +245,7 @@ Based on modeling assumptions, the most appropriate variable for modeling the co
 Repeat steps 2 and 3 above but including more than one variable in your model. You can easily do this in the `lm()` function by adding another variable to the formula with the `+` operator as so (but just replace the `INSERT_VARIABLE_X` parts):
 
 ### HELP
-```{r eval = FALSE}
+```{r eval = T}
 #how to program quick combination function
 var = c("log_cost ~ Interventions",
         "log_cost ~ Interventions + Duration",
@@ -286,7 +286,7 @@ $$
 
 where $R^2_j$ is the $R^2$ from a variable with variable $x_j$ as the response and the other $p-1$ predictors as the explanatory variables. VIF values close to 1 indicate the variable is not correlated with other predictors, while VIF values over 5 indicate strong presence of collinearity. If present, remove a variable with VIF over 5, and redo the fit. Rinse, lather, and repeat until the `vif()` outputs are all less than 5. The follow code chunk displays an example of using this function:
 
-```{r vif,eval = FALSE}
+```{r vif,eval = T}
 library(car)
 vif(multi_cost_lm)
 ```
