@@ -283,15 +283,13 @@ for(i in 1:max_i){
   
   reg = as.formula(rem_zero[i]) %>% lm(., data = heart_disease)
   
-  stat = summary(reg)$adj.r.squared
+  hold[i] = summary(reg)$adj.r.squared
   
-  hold[i] = stat
 }
 
 best_combo = rem_zero[which.max(hold)] #equation with highest adj.r.squared
 
-multi_cost_lm <- lm(as.formula(best_combo), 
-                   data = heart_disease)
+multi_cost_lm = lm(as.formula(best_combo), data = heart_disease)
 
 summary(multi_cost_lm) #$adj.r.squared
 ```
@@ -318,5 +316,3 @@ Given that all the VIF scores are relatively close to 1, there does not appear t
 ## Tomorrow
 
 Tomorrow's lab will focus on categorical variables, interactions, and holdout data predictions.
-
-
