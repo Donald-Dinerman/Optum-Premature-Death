@@ -165,13 +165,20 @@ log_cost_lm <- lm(log_cost ~ Interventions, data = heart_disease)
 Following the example in lecture, interpret the results from the `summary()` function on your initial model. __Do you think there is sufficient evidence to reject the null hypothesis that the coefficient is 0? What is the interpretation of the $R^2$ value?__
 
 ```{r}
-summary(log_cost_lm)
-```
-### HELP FINISH INTERPRETATIONS
-```
-$Beta_0$: 5.19 --> 
+lg_sum = summary(log_cost_lm)
 
-$Beta_1$: 0.24 --> 
+lg_sum
+
+lg_sum$coefficients[1,1] %>% exp() #beta 0
+
+((lg_sum$coefficients[2,1] %>% exp()) - 1 )*100 #beta 1
+```
+
+### HELP CHECK INTERPRETATIONS
+```
+$Beta_0$: 5.19 --> The patient's total cost of claims is $178.85 when the number of interventions carried out is zero.
+
+$Beta_1$: 0.24 --> For every one-unit increase in the number of interventions, the patient's total cost of claims increases by about 26.65%.
 
 There is sufficient evidence to reject the null hypothesis that the coefficient is 0 at alpha = 0.01 because the p-value is <2e-16.
 
@@ -182,10 +189,12 @@ Compare the square root of the raw (unadjusted) $R^2$ of your linear model to th
 
 ```{r}
 cor(heart_disease$Interventions, heart_disease$log_cost)
+
+summary(log_cost_lm)$r.squared %>% sqrt()
 ```
-### HELP What's to notice
+
 ```
-I notice that...
+I notice that the square root of the raw (unadjusted) $R^2$ of your linear model and the correlation between that explanatory variable and the response are exactly equal to eachother.
 ```
 
 To assess the fit of a linear model, we can also plot the predicted values vs the actual values, to see how closely our predictions align with reality, and to decide whether our model is making any systematic errors. Execute the following code chunk to show the actual log(`Cost`) against our model's predictions
