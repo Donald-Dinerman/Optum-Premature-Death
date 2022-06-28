@@ -1,0 +1,345 @@
+---
+title: "0628-Lecture"
+output: html_document
+date: '2022-06-28'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Supervise Learning: Intro to variable selection
+
+## The setting
+
+We wish to learn a linear model. Our estimate (denoted by hats) is
+$$
+\hat{Y} = \hat{\beta}_0 + \hat{\beta}_1 X_1 + \cdots + \hat{\beta}_p X_p
+$$
+
+Why would we attempt to select a __subset__ of the $p$ variables?
+
+- *To improve prediction accuracy* 
+
+  - Eliminating uninformative predictors can lead to lower variance in the test-set MSE, at the expense of a slight increase in bias
+
+- *To improve model interpretability*
+
+  - Eliminating uninformative predictors is obviously a good thing when your goal is to tell the story of how your predictors are associated with your response.
+
+## Best subset selection
+
+- Start with the __null model__ $\mathcal{M}_0$ (intercept-only) that has no predictors
+
+  - just predicts the sample mean for each observation
+  
+- For $k = 1, 2, \dots, p$ (each possible number of predictors)
+
+  - Fit __all__ $\binom{p}{k} = \frac{p!}{k!(p-k)!}$ with exactly $k$ predictors
+  
+  - Pick the best (some criteria) among these $\binom{p}{k}$ models, call it $\mathcal{M}_k$
+  
+    - Best can be up to the user: cross-validation error, highest adjusted $R^2$, etc.
+  
+- Select a single best model from among $\mathcal{M}_0, \dots, \mathcal{M}_p$
+
+__This is not typically used in research!__
+
+- only practical for a smaller number of variables
+
+- arbitrary way of defining __best__ and ignores __prior knowledge__ about potential predictors
+
+## Use the shoe leather approach
+
+[Prof. David Freeman](https://en.wikipedia.org/wiki/David_A._Freedman):
+
+- algorithms can be tempting but they are NOT substitutes!
+
+- you should NOT avoid the hard work of EDA in your modeling efforts
+
+__Variable selection is a difficult problem!__
+
+- Like much of a statistics & data science research there is not one unique, correct answer
+
+You should justify which predictors / variables used in modeling based on:
+
+- __context__,
+
+- __extensive EDA__, and 
+
+- __model assessment based on holdout predictions__
+
+## Covariance and correlation
+
+- __Covariance__ is a measure of the __linear__ dependence between two variables
+
+  - To be _"uncorrelated"_ is not the same as to be _"independent"_...
+  
+  - Independence means __there is no dependence__, linear or otherwise
+  
+- __Correlation__ is a _normalized_ form of covariance, ranges from -1 through 0 to 1
+
+  - -1 means one variable linearly decreases absolutely in value while the other increases in value
+  
+  - 0 means no linear dependence
+  
+  - 1 means one variable linear increases absolutely while the other increases
+
+- We can use the `cov()` / `cor()` functions in `R` to generate the __covariance__ / __correlation__ matrices
+
+## Example data: NFL teams summary
+
+Created dataset using [`nflfastR`](https://www.nflfastr.com/) summarizing NFL team performances from 1999 to 2021
+
+```{r, warning = FALSE, message = FALSE}
+library(tidyverse)
+nfl_teams_data <- read_csv("http://www.stat.cmu.edu/cmsac/sure/2022/materials/data/sports/regression_examples/nfl_team_season_summary.csv")
+```
+
+## Modeling NFL score differential
+
+Interested in modeling a team's __score differential__
+
+```{r score-diff, echo = TRUE}
+nfl_teams_data <- nfl_teams_data %>%
+  mutate(score_diff = 
+           points_scored - points_allowed)
+
+nfl_teams_data %>%
+  ggplot(aes(x = score_diff)) +
+  geom_histogram(color = "black", 
+                 fill = "darkblue",
+                 alpha = 0.3) +
+  theme_bw() +
+  labs(x = "Score differential")
+```
+
+### Correlation matrix of score differential and candidate predictors
+
+- Interested in `score_diff` relationships with team passing and rush statistics
+
+- View the correlation matrix with [`ggcorrplot`](https://rpkgs.datanovia.com/ggcorrplot/)
+
+```{r init-cor, echo = TRUE, eval = FALSE}
+library(ggcorrplot)
+
+nfl_model_data <- nfl_teams_data %>%
+  dplyr::select(score_diff, offense_ave_epa_pass,
+                offense_ave_epa_run, 
+                defense_ave_epa_pass,
+                defense_ave_epa_run,
+                offense_ave_yards_gained_pass,
+                offense_ave_yards_gained_run,
+                defense_ave_yards_gained_pass,
+                defense_ave_yards_gained_run)
+
+nfl_cor_matrix <- cor(nfl_model_data) #<<
+ggcorrplot(nfl_cor_matrix) #<<
+```
+
+## Customize the appearance of the correlation matrix
+
+- Avoid redundancy by only using one half of matrix with `type`
+
+- Add correlation value labels using `lab` (but round first!)
+
+- Can arrange variables based on clustering...
+
+```{r pretty-cor, echo = TRUE, eval = FALSE}
+round_cor_matrix <- 
+  round(cor(nfl_model_data), 2) #<<
+ggcorrplot(round_cor_matrix, 
+           hc.order = TRUE,#<<
+           type = "lower",#<<
+           lab = TRUE)#<<
+```
+
+## Clustering variables using the correlation matrix
+
+Apply [hierarchical clustering](http://stat.cmu.edu/cmsac/sure/2021/materials/lectures/slides/07-Hierarchical-clustering.html#1) to variables instead of observations
+
+- Select the explanatory variables of interest from our data
+
+```{r select-preds}
+nfl_ex_vars <- dplyr::select(nfl_model_data, -score_diff)
+```
+
+- Compute correlation matrix of these variables:
+
+```{r exp-cor}
+exp_cor_matrix <- cor(nfl_ex_vars)
+```
+
+- Correlations measure similarity and can be negative __BUT__ distances measure dissimilarity and __CANNOT__ 
+
+- Convert your correlations to all be $\geq 0$: e.g., $1 - |\rho|$ (which drops the sign) or $1 - \rho$
+
+```{r cor-dist}
+cor_dist_matrix <- 1 - abs(exp_cor_matrix)
+```
+
+- Convert to distance matrix before using `hclust`
+
+```{r as-dist}
+cor_dist_matrix <- as.dist(cor_dist_matrix)
+```
+
+## Clustering variables using the correlation matrix
+
+- Cluster variables using `hclust()` as before!
+
+- Use [`ggdendro`](https://cran.r-project.org/web/packages/ggdendro/vignettes/ggdendro.html) to quickly visualize dendrogram
+
+```{r init-var-cluster, eval = FALSE}
+library(ggdendro)
+
+nfl_exp_hc <- hclust(cor_dist_matrix, "complete") 
+
+ggdendrogram(nfl_exp_hc, #<<
+             rotate = TRUE, #<<
+             size = 2)#<<
+```
+
+## Clustering variables using the correlation matrix
+
+- Another flexible option is [`dendextend`](https://cran.r-project.org/web/packages/dendextend/vignettes/dendextend.html)
+
+```{r var-dendro, eval = FALSE}
+library(dendextend)
+
+cor_dist_matrix %>%
+  hclust() %>%
+  as.dendrogram() %>% #<<
+  set("branches_k_col", 
+      k = 2) %>% 
+  set("labels_cex", .5) %>%
+  ggplot(horiz = TRUE)
+```
+
+- Explore the [package documentation](https://cran.r-project.org/web/packages/dendextend/vignettes/dendextend.html) for more formatting
+
+## Back to the response variable...
+
+Use the [`GGally`](https://ggobi.github.io/ggally/index.html) package to easily create __pairs__ plots of multiple variables
+
+- __always look at your data__
+
+- correlation values alone are not enough!
+
+- what if a variable displayed a quadratic relationship?
+
+```{r pairsplot, eval = FALSE}
+library(GGally) #<<
+
+ggpairs(nfl_model_data, #<<
+        columns =
+          c("score_diff", "offense_ave_epa_pass",
+            "offense_ave_epa_run", "defense_ave_epa_pass",
+            "defense_ave_epa_run")) + #<<
+  theme_bw()
+```
+
+### Do running statistics matter for modeling score differential?
+
+Will use __5-fold cross-validation__ to assess how well different sets of variables (combinations of `pass` & `run` variables) perform in predicting `score_diff`?
+
+Can initialize a column of the __test__ fold assignments to our dataset with the `sample()` function:
+```{r init-folds}
+set.seed(2020)
+
+nfl_model_data <- nfl_model_data %>%
+  mutate(test_fold = sample(rep(1:5, length.out = n())))
+```
+
+__Always remember to set your seed prior to any k-fold cross-validation!__
+
+## Writing a function for k-fold cross-validation
+
+```{r}
+get_cv_preds <- function(model_formula, data = nfl_model_data) {
+  # generate holdout predictions for every row based season
+  map_dfr(unique(data$test_fold), 
+          function(holdout) {
+            # Separate test and training data:
+            test_data <- data %>%
+              filter(test_fold == holdout)
+            train_data <- data %>%
+              filter(test_fold != holdout)
+            
+            # Train model:
+            reg_model <- lm(as.formula(model_formula), data = train_data)
+            
+            # Return tibble of holdout results:
+            tibble(test_preds = predict(reg_model, newdata = test_data),
+                   test_actual = test_data$score_diff,
+                   test_fold = holdout) 
+          })
+}
+
+```
+
+## Function enables easy generation of holdout analysis
+
+```{r}
+all_cv_preds <- get_cv_preds("score_diff ~  offense_ave_epa_pass + offense_ave_epa_run + defense_ave_epa_pass + defense_ave_epa_run")
+all_int_cv_preds <- get_cv_preds("score_diff ~ offense_ave_epa_pass*offense_ave_epa_run + defense_ave_epa_pass*defense_ave_epa_run")
+run_only_cv_preds <- get_cv_preds("score_diff ~ offense_ave_epa_run + defense_ave_epa_run")
+pass_only_cv_preds <- get_cv_preds("score_diff ~ offense_ave_epa_pass + defense_ave_epa_pass")
+off_only_cv_preds <- get_cv_preds("score_diff ~ offense_ave_epa_pass + offense_ave_epa_run")
+def_only_cv_preds <- get_cv_preds("score_diff ~ defense_ave_epa_pass + defense_ave_epa_run")
+int_only_cv_preds <- get_cv_preds("score_diff ~ 1")
+```
+
+Can then summarize together for a single plot:
+```{r five-fold, eval = FALSE}
+bind_rows(mutate(all_cv_preds, type = "All"),
+          mutate(all_int_cv_preds, type = "All w/ interactions"),
+          mutate(pass_only_cv_preds, type = "Passing only"),
+          mutate(run_only_cv_preds, type = "Running only"),
+          mutate(off_only_cv_preds, type = "Offense only"),
+          mutate(def_only_cv_preds, type = "Defense only"),
+          mutate(int_only_cv_preds, type = "Intercept-only")) %>%
+  group_by(type) %>%
+  summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>%
+  mutate(type = fct_reorder(type, rmse)) %>%
+  ggplot(aes(x = type, y = rmse)) +
+  geom_point() + 
+  coord_flip() + 
+  theme_bw()
+```
+
+## Fit selected model on all data and view summary
+
+```{r}
+all_lm <- lm(score_diff ~ offense_ave_epa_pass + offense_ave_epa_run + defense_ave_epa_pass + defense_ave_epa_run, data = nfl_model_data)
+summary(all_lm)
+```
+
+## Do NOT show that summary in a presentation!
+
+- We can instead display a __coefficient plot__ with confidence intervals based on the reported standard errors
+
+- Use the [`ggcoef()`](https://ggobi.github.io/ggally/articles/ggcoef.html) function from `GGally`
+
+```{r ggcoef, eval = FALSE}
+ggcoef(all_lm, 
+       exclude_intercept = TRUE,
+       vline = TRUE,
+       vline_color = "red") + 
+  theme_bw()
+```
+
+- [__A well formatted table__](https://cran.r-project.org/web/packages/sjPlot/vignettes/tab_model_estimates.html) of the summary output is appropriate for a report (not for a presentation)
+
+
+
+
+
+
+
+
+
+
+
+
+
