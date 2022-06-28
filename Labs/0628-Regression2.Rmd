@@ -36,13 +36,13 @@ To review from yesterday's lab: This dataset consists of 788 heart disease patie
 
 Run the following code to fit a model using only the `Gender` variable:
 
-```{r, eval = FALSE}
+```{r}
 gender_cost_lm <- lm(log_cost ~ Gender, data = heart_disease)
 ```
 
 Next, use the following code to first create a column called `model_preds` containing the predictions of the model above, to display the predictions of this model against the actual `log_cast`, but `facet` by the patient's `Gender`:
 
-```{r, eval = FALSE}
+```{r}
 heart_disease %>%
   mutate(model_preds = predict(gender_cost_lm)) %>%
   ggplot(aes(x = log_cost, y = model_preds)) +
@@ -55,7 +55,7 @@ heart_disease %>%
 
 As the figure above, categorical variables make it __so we are changing the intercept of our regression line__. To make this more clear, view the output of the summary:
 
-```{r, eval = FALSE}
+```{r}
 summary(gender_cost_lm)
 ```
 
@@ -63,16 +63,24 @@ __Notice how only one coefficient is provided in addition to the intercept.__ Th
 
 __Beware the default baseline `R` picks for categorical variables!__ We typically want to choose the baseline level to be the group __with the most observations__. In this example, `Female` has the most number of observations so the default was appropriate. But in general, we can change the reference level by modifying the `factor` levels of the categorical variables (similar to how we reorder things in `ggplot2`). For example, we can use the following code to modify the `Gender` variable so that `Male` is the baseline (we use `fct_relevel()` to update `Gender` so that `Male` is the first factor level - and we do not need to modify the order of the remaining levels):
 
-```{r, eval = FALSE}
+```{r}
 heart_disease <- heart_disease %>%
   mutate(Gender = fct_relevel(Gender, "Male")) 
 ```
 
-__Refit the linear regression model using `Gender` above, how has the summary changed?__
+```{r}
+gender_cost_lm_relevel <- lm(log_cost ~ Gender, data = heart_disease)
 
-After you refit the model above, change the reference level back to `Female` witht the following code:
+summary(gender_cost_lm_relevel)
+```
 
-```{r, eval = FALSE}
+```
+Now Male is the baseline.
+```
+
+After you refit the model above, change the reference level back to `Female` with the following code:
+
+```{r}
 heart_disease <- heart_disease %>%
   mutate(Gender = fct_relevel(Gender, "Female")) 
 ```
@@ -81,17 +89,34 @@ heart_disease <- heart_disease %>%
 
 Pick a single continuous variable from yesterday, use it to replace INSERT_VARIABLE below, then run the code to fit a model with the `Gender` included:
 
-```{r, eval = FALSE}
-x_gender_cost_lm <- lm(log_cost ~ Gender + INSERT_VARIABLE, data = heart_disease)
+```{r}
+x_gender_cost_lm <- lm(log_cost ~ Gender + Interventions, data = heart_disease)
 ```
 
 __Create scatterplots with your predictions on the y-axis, your INSERT_VARIABLE on the x-asis, and color by `Gender`__. What do you observe?
+
+```{r}
+#combine model list elements to df
+gender_pred_df = broom::augment(x_gender_cost_lm, heart_disease)
+
+gender_pred_df %>%
+  ggplot(aes(x = Interventions, 
+             y = .fitted)) + #<<
+  geom_point(aes(color = Gender), alpha = 0.5) +
+  geom_line(aes(color = Gender)) +
+  theme_bw() +
+  labs(y = "Fitted Values")
+```
+
+```
+The lines appear to have a similar slope but male is shifted slightly down.
+```
 
 ### 3. Collapsing categorical variables
 
 Another categorical we have access to is the `Drugs` variable, which is currently coded as numeric. We can first use the `fct_recode()` function to modify the `Drugs` variable so that the integers are relabeled:
 
-```{r, eval = FALSE}
+```{r}
 heart_disease <- heart_disease %>%
   mutate(Drugs = fct_recode(as.factor(Drugs),
                             "None" = "0",
@@ -101,15 +126,35 @@ heart_disease <- heart_disease %>%
 
 Run the following code to fit a model using only the `Drugs` variable:
 
-```{r, eval = FALSE}
+```{r}
 drugs_cost_lm <- lm(log_cost ~ Drugs, data = heart_disease)
 ```
 
 Repeat the same from above that you considered for the `Gender` variable, viewing the predictions facetted by `Drugs` and assess the `summary()` output. __Do you think an appropriate reference level was used?__ (HINT: Use the `table()` function on the `Drugs` variable to view the overall frequency of each level and determine if the most frequent level was used as the reference.)
 
+```{r}
+summary(drugs_cost_lm)
+
+table(heart_disease$Drugs)
+```
+```{r}
+drugs_pred_df = broom::augment(drugs_cost_lm, heart_disease)
+
+drugs_pred_df %>%
+  ggplot(aes(x = log_cost, 
+             y = .fitted)) + #<<
+  geom_point(aes(color = Drugs), alpha = 0.5) +
+  theme_bw() +
+  labs(y = "Fitted Values")
+```
+
+```
+None is the most common drug type and is used as the baseline.
+```
+
 Given the similar values, we may decide to collapse the level of `One` and `> One` into a single level `>= One`. We can easily collapse the levels together into a smaller number of categories using `fct_collapse()`:
 
-```{r eval = FALSE}
+```{r }
 heart_disease <- heart_disease %>%
   mutate(drugs_group = fct_collapse(Drugs,
                                        None = c("None"),
@@ -118,36 +163,66 @@ heart_disease <- heart_disease %>%
 
 __Refit the model with this new `drugs_group` variable__, but assign it to a different name, e.g. `drugs_group_cost_lm`. What changed in the summary?
 
+```{r}
+drugs_group_cost_lm = lm(log_cost ~ drugs_group, data = heart_disease)
+
+summary(drugs_group_cost_lm)
+```
+
+```
+The beta_1 coefficient changed in the summary. It appears to be roughly the average of the beta_1 and beta_2 coefficients from the previous regression output. Also the asjusted R-squared increased in this model as the number of parameters decreased.
+```
+
 ### 4. Interactions
 
 Remember with `ggplot2` you can directly compute and plot the results from running linear regression using `geom_smooth()` or `stat_smooth()` and specifying that `method = "lm"`. Try running the following code (replace `INSERT_VARIABLE`!) to generate the linear regression fits with `geom_smooth` versus your own model's predictions (note the different `y` mapping for the point versus smooth layers):
 
-```{r eval = FALSE}
+```{r }
 heart_disease %>%
   mutate(model_preds = predict(x_gender_cost_lm)) %>%
-  ggplot(aes(x = INSERT_VARIABLE, 
+  ggplot(aes(x = Interventions, 
              color = Gender)) +
   geom_point(aes(y = model_preds),
              alpha = 0.5) +
   theme_bw() +
   facet_wrap(~ Gender, ncol = 3) +
-  labs(x = "INSERT YOUR LABEL HERE", 
+  labs(x = "Interventions", 
        y = "Predicted log(Cost + 1)") +
   geom_smooth(aes(y = log_cost),
-              method = "lm") 
+              method = "lm")
 ```
 
 __The `geom_smooth()` regression lines do NOT match!__ This is because `ggplot2` is fitting __separate regressions for each gender__, meaning the slope for the continuous variable on the x-axis is changing for each gender We can match the output of the `geom_smooth()` results with __interactions__. We can use interaction terms to build more complex models. Interaction terms allow for a different linear model to be fit for each category; that is, they allow for different slopes across different categories. If we believe relationships between continuous variables, and outcomes, differ across categories, we can use interaction terms to better model these relationships.
 
 To fit a model with an interaction term between two variables, include the interaction via the `*` operator like so:
 
-```{r eval = FALSE}
-gender_int_cost_lm <- lm(log_cost ~ Gender + INSERT_VARIABLE +
-                       Gender * INSERT_VARIABLE, 
+```{r }
+gender_int_cost_lm <- lm(log_cost ~ Gender + Interventions +
+                       Gender * Interventions, 
                    data = heart_disease)
 ```
 
 __Replace the predictions in the previous plot's `mutate` code with this interaction model's predictions.__ How do they compare to the results from `geom_smooth()` now?
+
+```{r}
+heart_disease %>%
+  mutate(model_preds = predict(gender_int_cost_lm)) %>%
+  ggplot(aes(x = Interventions, 
+             color = Gender)) +
+  geom_point(aes(y = model_preds),
+             alpha = 0.5) +
+  theme_bw() +
+  facet_wrap(~ Gender, ncol = 3) +
+  labs(x = "Interventions", 
+       y = "Predicted log(Cost + 1)") +
+  geom_smooth(aes(y = log_cost),
+              method = "lm")
+```
+###HELP WHAT CHANGES AND WHY
+
+```
+
+```
 
 You can model interactions between any type of variables using the `*` operator, feel free to experiment on your different possible continuous variables.
 
@@ -155,66 +230,125 @@ You can model interactions between any type of variables using the `*` operator,
 
 Another way to increase the explanatory power of your model is to include transformations of continuous variables. For instance you can directly create a column that is a square of a variable with `mutate()` and then fit the regression with the original variable and its squared term:
 
-```{r eval = FALSE}
+```{r }
 heart_disease <- heart_disease %>%
   mutate(duration_squared = Duration^2)
+
 squared_duration_lm <- lm(log_cost ~ Duration + duration_squared, 
                     data = heart_disease)
+
 summary(squared_duration_lm)
+```
+
+```{r}
+duration_pred_df = broom::augment(squared_duration_lm, heart_disease)
+
+duration_pred_df %>%
+  ggplot(aes(x = log_cost, 
+             y = .fitted)) + #<<
+  geom_point(alpha = 0.5) +
+  theme_bw() +
+  labs(y = "Fitted Values")
 ```
 
 __What are some difficulties with interpreting this model fit?__ View the predictions for this model or other covariates you squared.
 
+```
+It is difficult to interpret the beta_2 coefficient since we have the squared transformation on our covariate.
+```
+
 The `poly()` function allows us to build higher-order polynomial transformations of variables easily. Run the following code chunk to fit a 9th-order polynomial model (i.e. $Y = \beta_0 + \beta_1x + \beta_2x^2 + \ldots + \beta_9x^9$) between `log_cost` and `Duration`. 
 
-```{r eval = FALSE}
-poly_nine_duration_lm <- lm(log_cost ~ poly(Duration, 9), 
-                      data = heart_disease)
+```{r }
+poly_nine_duration_lm <- lm(log_cost ~ poly(Duration, 9), data = heart_disease)
+
 summary(poly_nine_duration_lm)
 ```
 
+```{r}
+duration_poly_pred_df = broom::augment(poly_nine_duration_lm, heart_disease)
+
+duration_poly_pred_df %>%
+  ggplot(aes(x = log_cost, 
+             y = .fitted)) + #<<
+  geom_point(alpha = 0.5) +
+  theme_bw() +
+  labs(y = "Fitted Values")
+```
+
+### HELP WHAT AM I SEEING HERE
+
 __Do you think this is appropriate, how did this change your predictions compared to the previous plot or when only using the variable without any transformation?__
+
+```
+I don't think this is appropriate, compared to the previous plot my predictions this increased the upper and lower bounds of my prediction but they appear similar.
+```
 
 ### 6. Training and testing
 
 As we've seen, using transformations such as higher-order polynomials may decrease the interpretability and increase the potential for overfitting associated with our models; however, they can also dramatically improve the explanatory power.
 
-We need a way for making sure our more complicated models have not overly fit to the noise present in our data. Another way of saying this is that a good model should generalize to a different sample than the one on which it was fit. This intuition motivates the idea of training/testing. We split our data into two parts, use one part -- the training set -- to fit our models, and the other part -- the testing set -- to evaluate our models. Any model which happens to fit to the noise present in our training data should perform poorly on our testing data.  
+We need a way for making sure our more complicated models have not overly fit to the noise present in our data. Another way of saying this is that a good model should generalize to a different sample than the one on which it was fit. This intuition motivates the idea of training/testing. We split our data into two parts, use one part -- the training set -- to fit our models, and the other part -- the testing set -- to evaluate our models. Any model which happens to fit to the noise present in our training data should perform poorly on our testing data.
 
 The first thing we will need to do is split our sample. Run the following code chunk to divide our data into two halves, which we will refer to as a training set and a test set. Briefly summarize what each line in the code chunk is doing.
 
-```{r, eval = FALSE}
-n_patients <- nrow(heart_disease)
-train_i <- sample(n_patients, n_patients / 2, replace = FALSE)
-test_i <- (1:n_patients)[-train_i]
-heart_train <- heart_disease[train_i,]
-heart_test <- heart_disease[test_i,]
+```{r}
+n_patients <- nrow(heart_disease) #number rows in df
+train_i <- sample(n_patients, n_patients / 2, replace = FALSE) #randomly sample n/2 indices from df
+test_i <- (1:n_patients)[-train_i] #take indices that were not previously selected
+heart_train <- heart_disease[train_i,] #assign indices to train data
+heart_test <- heart_disease[test_i,] #assign !indices to test data
 ```
 
 We will now compare three candidate models for predicting `log_cost` using `Gender` and `Duration`. We will fit these models on the **training data** only, ignoring the testing data for the moment. Run the below two code chunks to create two candidate models:
 
-```{r eval = FALSE}
+```{r }
 candidate_model_1 <- lm(log_cost ~ poly(Duration, 2) + Gender +
                           Gender * poly(Duration, 2), 
                         data = heart_train)
+
+summary(candidate_model_1)
 ```
 
-```{r eval = FALSE}
+```{r }
 candidate_model_2 <- lm(log_cost ~ poly(Duration, 2) + Gender, 
                         data = heart_train)
+
+summary(candidate_model_2)
 ```
 
 Using `summary()`, which of these models has more explanatory power according to the training data? Which of the models is less likely to overfit?
 
+```
+According to the training data, the first model has slightly more explanatory power however it is more likely to overfit the data.
+```
+
 __Fit another model to predict `log_cost` using a different set of variables / polynomials__. 
+
+```{r}
+candidate_model_3 <- lm(log_cost ~ poly(Interventions, 2) + Gender, 
+                        data = heart_train)
+
+summary(candidate_model_3)
+```
 
 Now that we've built our candidate models, we will evaluate them on our test set, using the criterion of mean squared error (MSE). Run the following code chunk to compute, on the test set, the MSE of predictions given by the first model compared to the actual `log_cost`.
 
-```{r eval = FALSE}
+__Do this for each of your candidate models__. Compare the MSE on the test set, which model performed best (lowest test MSE)?
+
+```{r }
 model_1_preds <- predict(candidate_model_1, newdata = heart_test)
 model_1_mse <- mean((model_1_preds - heart_test$log_cost)^2)
+
+model_2_preds <- predict(candidate_model_2, newdata = heart_test)
+model_2_mse <- mean((model_2_preds - heart_test$log_cost)^2)
+
+model_3_preds <- predict(candidate_model_3, newdata = heart_test)
+model_3_mse <- mean((model_3_preds - heart_test$log_cost)^2)
+
+tibble(model_1_mse, model_2_mse, model_3_mse)
 ```
 
-__Do this for each of your candidate models__. Compare the MSE on the test set, which model performed best (lowest test MSE)?
+The candidate model 3 performed the best with the lowest MSE on the test set.
 
 
