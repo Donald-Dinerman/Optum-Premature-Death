@@ -109,7 +109,7 @@ gender_pred_df %>%
 ```
 
 ```
-The lines appear to have a similar slope but male is shifted slightly down.
+The lines appear to have a similar slope but male is shifted slightly down. (Likely no interaction)
 ```
 
 ### 3. Collapsing categorical variables
@@ -188,7 +188,7 @@ heart_disease %>%
   facet_wrap(~ Gender, ncol = 3) +
   labs(x = "Interventions", 
        y = "Predicted log(Cost + 1)") +
-  geom_smooth(aes(y = log_cost),
+  geom_smooth(aes(y = model_preds),
               method = "lm")
 ```
 
@@ -200,6 +200,8 @@ To fit a model with an interaction term between two variables, include the inter
 gender_int_cost_lm <- lm(log_cost ~ Gender + Interventions +
                        Gender * Interventions, 
                    data = heart_disease)
+
+summary(gender_int_cost_lm)
 ```
 
 __Replace the predictions in the previous plot's `mutate` code with this interaction model's predictions.__ How do they compare to the results from `geom_smooth()` now?
@@ -215,13 +217,12 @@ heart_disease %>%
   facet_wrap(~ Gender, ncol = 3) +
   labs(x = "Interventions", 
        y = "Predicted log(Cost + 1)") +
-  geom_smooth(aes(y = log_cost),
+  geom_smooth(aes(y = model_preds),
               method = "lm")
 ```
-###HELP WHAT CHANGES AND WHY
 
 ```
-
+The slope slightly changes as dictated by the interaction term (which isn't significantly different than zero).
 ```
 
 You can model interactions between any type of variables using the `*` operator, feel free to experiment on your different possible continuous variables.
@@ -276,12 +277,10 @@ duration_poly_pred_df %>%
   labs(y = "Fitted Values")
 ```
 
-### HELP WHAT AM I SEEING HERE
-
 __Do you think this is appropriate, how did this change your predictions compared to the previous plot or when only using the variable without any transformation?__
 
 ```
-I don't think this is appropriate, compared to the previous plot my predictions this increased the upper and lower bounds of my prediction but they appear similar.
+I don't think this is appropriate, compared to the previous plot this increased the upper and lower bounds of my prediction but they appear similar. Therefore, not significantly increasing the predictive ability of the model but defintely increasing its complexity (decreasing the interpretability).
 ```
 
 ### 6. Training and testing
@@ -349,6 +348,7 @@ model_3_mse <- mean((model_3_preds - heart_test$log_cost)^2)
 tibble(model_1_mse, model_2_mse, model_3_mse)
 ```
 
+```
 The candidate model 3 performed the best with the lowest MSE on the test set.
-
+```
 
