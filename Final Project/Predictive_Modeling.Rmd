@@ -22,7 +22,7 @@ Determine the mix of predictors (i.e., specific x's and categories).
 
 ## Length of Life
 
-Premature Death: Years of potential life lost before age 75 per 100,000 population (age-adjusted)
+Premature Death: Years of potential life (YPPL) lost before age 75 per 100,000 population (age-adjusted)
 
 Life Expectancy: Average number of years a person can expect to live.
 
@@ -88,8 +88,26 @@ Firearm Fatalities*: Number of deaths due to firearms per 100,000 population.
 
 Juvenile Arrests*: Rate of delinquency cases per 1,000 juveniles.
 
+# Read Data
 
+```{r}
+library(tidyverse)
+library(readxl)
+```
 
+```{r}
+data = read_xlsx("CountyHealthRankingsData2022.xlsx", 4, skip = 1)
+
+add_data = read_xlsx("CountyHealthRankingsData2022.xlsx", 6, skip = 1)
+```
+
+```{r}
+#remove features
+#(: remove demographic info, CI: remove conf int, Quartile: remove quartile rankings)
+select(data, -contains(c("CI", "Quartile", "(")))
+
+select(add_data, -contains(c("CI", "Quartile", "(")))
+```
 
 
 
