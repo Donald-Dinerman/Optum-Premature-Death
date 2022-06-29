@@ -109,6 +109,7 @@ select(data, -contains(c("CI", "Quartile", "(")))
 select(add_data, -contains(c("CI", "Quartile", "(")))
 ```
 
+# EDA
 
 
 
@@ -116,6 +117,13 @@ select(add_data, -contains(c("CI", "Quartile", "(")))
 
 
 
+# Modeling
+
+
+
+
+
+# Conclusions
 
 
 
