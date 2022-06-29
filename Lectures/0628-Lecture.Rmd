@@ -120,7 +120,7 @@ nfl_teams_data %>%
 
 - View the correlation matrix with [`ggcorrplot`](https://rpkgs.datanovia.com/ggcorrplot/)
 
-```{r init-cor, echo = TRUE, eval = FALSE}
+```{r init-cor, echo = TRUE}
 library(ggcorrplot)
 
 nfl_model_data <- nfl_teams_data %>%
@@ -145,7 +145,7 @@ ggcorrplot(nfl_cor_matrix) #<<
 
 - Can arrange variables based on clustering...
 
-```{r pretty-cor, echo = TRUE, eval = FALSE}
+```{r pretty-cor, echo = TRUE}
 round_cor_matrix <- 
   round(cor(nfl_model_data), 2) #<<
 ggcorrplot(round_cor_matrix, 
@@ -245,7 +245,7 @@ Will use __5-fold cross-validation__ to assess how well different sets of variab
 
 Can initialize a column of the __test__ fold assignments to our dataset with the `sample()` function:
 ```{r init-folds}
-set.seed(2020)
+set.seed(20)
 
 nfl_model_data <- nfl_model_data %>%
   mutate(test_fold = sample(rep(1:5, length.out = n())))
@@ -258,11 +258,13 @@ __Always remember to set your seed prior to any k-fold cross-validation!__
 ```{r}
 get_cv_preds <- function(model_formula, data = nfl_model_data) {
   # generate holdout predictions for every row based season
-  map_dfr(unique(data$test_fold), 
+  map_dfr(unique(data$test_fold),
+          
           function(holdout) {
             # Separate test and training data:
             test_data <- data %>%
               filter(test_fold == holdout)
+            
             train_data <- data %>%
               filter(test_fold != holdout)
             
@@ -273,7 +275,8 @@ get_cv_preds <- function(model_formula, data = nfl_model_data) {
             tibble(test_preds = predict(reg_model, newdata = test_data),
                    test_actual = test_data$score_diff,
                    test_fold = holdout) 
-          })
+          }
+        )
 }
 
 ```
