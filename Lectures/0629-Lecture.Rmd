@@ -1,0 +1,412 @@
+-
+title: "0629-Lecture"
+output: html_document
+date: '2022-06-29'
+-
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Supervised Learning: Regularization
+
+## Previously...
+
+We talked about variable selection in the linear model context:
+
+$$
+\hat{Y} = \hat{\beta}_0 + \hat{\beta}_1 x_1 + \cdots + \hat{\beta}_p x_p
+$$
+
+Why would we attempt to select a __subset__ of the $p$ variables?
+
+- *To improve prediction accuracy* 
+
+  - Eliminating uninformative predictors can lead to lower variance in the test-set MSE, at the expense of a slight increase in bias
+
+- *To improve model interpretability*
+
+  - Eliminating uninformative predictors is obviously a good thing when your goal is to tell the story of how your predictors are associated with your response.
+
+__Remember the bias-variance tradeoff__:
+
+$$
+{\rm MSE} = {\rm (Bias)}^2 + {\rm Variance}
+$$
+
+- Introduce bias but decrease variance to improve predictions
+
+## Shrinkage methods: Ridge regression
+
+__Remember__: linear regression estimates coefficients by minimizing:
+
+ $$\text{RSS} = \sum_i^n \big(Y_i - \beta_0 -  \sum_j^p \hat{\beta}_j x_{ij}\big)^2$$
+
+__Ridge regression__ introduces a __shrinkage penalty__ $\lambda \geq 0$ by minimizing:
+
+$$\sum_i^n \big(Y_i - \beta_0 -  \sum_j^p \beta_j x_{ij}\big)^2 + \lambda \sum_j^p \beta_j^2 = \text{RSS} + \lambda \sum_j^p \beta_j^2$$
+
+- as $\lambda$ increases $\Rightarrow$ flexibility of models decreases
+
+  - __increases bias, but decreases variance__
+ 
+- for fixed value of $\lambda$, ridge regression fits only a single model
+
+  - need to use cross-validation to __tune__ $\lambda$
+
+## Shrinkage methods: Ridge regression
+
+For example: note how the magnitude of the coefficient for `Income` trends as $\lambda \rightarrow \infty$
+
+```{r out.width='40%', echo = FALSE, fig.align='center'}
+library(tidyverse)
+library(magick)
+
+image_read("http://www.stat.cmu.edu/~pfreeman/Ridge.png") %>% print()
+```
+
+The coefficient __shrinks towards zero__, but never actually reaches it
+
+- `Income` is always a variable in the learned model, regardless of the value of $\lambda$
+
+## Shrinkage methods: Lasso regression
+
+Ridge regression __keeps all variables__ 
+
+But we may believe there is a __sparse__ solution
+
+__Lasso__ enables variable selection with $\lambda$ by minimizing:
+
+$$\sum_i^n \big(Y_i - \beta_0 -  \sum_j^p \beta_j X_{ij}\big)^2 + \lambda \sum_j^p\vert  \beta_j \vert = \text{RSS} + \lambda \sum_j^p \vert \beta_j \vert$$
+
+- Lasso uses an $\ell_1$ ("ell 1") penalty
+
+- as $\lambda$ increases $\Rightarrow$ flexibility of models decreases
+
+  - __increases bias, but decreases variance__
+
+- Can handle the $p > n$ case, i.e. more variables than observations!
+
+## Shrinkage methods: Lasso regression
+
+Lasso regression __performs variable selection__ yielding __sparse__ models
+
+```{r out.width='40%', echo = FALSE, fig.align='center'}
+image_read("http://www.stat.cmu.edu/~pfreeman/Lasso.png") %>% print()
+```
+
+The coefficient shrinks towards and __eventually equals zero__ at $\lambda \approx 1000$
+
+- if the optimum value of $\lambda$ is larger, then `Income` would NOT be included in the learned model
+
+## Best of both worlds? Elastic net
+
+$$\sum_{i}^{n}\left(Y_{i}-\beta_{0}-\sum_{j}^{p} \beta_{j} X_{i j}\right)^{2}+\lambda\left[(1-\alpha)\|\beta\|_{2}^{2} / 2+\alpha\|\beta\|_{1} \right]$$
+- $\vert \vert \beta \vert \vert_1$ is the $\ell_1$ norm: $\vert \vert \beta \vert \vert_1 = \sum_j^p \vert \beta_j \vert$
+
+- $\vert \vert \beta \vert \vert_2$ is the $\ell_2$, Euclidean, norm: $\vert \vert \beta \vert \vert_2 = \sqrt{\sum_j^p \beta_j^2}$
+
+- Ridge penalty: $\lambda \cdot (1 - \alpha) / 2$
+
+- Lasso penalty: $\lambda \cdot \alpha$
+
+- $\alpha$ controls the __mixing__ between the two types, ranges from 0 to 1
+
+  - $\alpha = 1$ returns lasso
+  
+  - $\alpha = 0$ return ridge
+
+## Caveats to consider...
+
+- For either ridge, lasso, or elastic net: __you should standardize your data__
+
+- Common convention: within each column, compute then subtract off the sample mean, and compute the divide off the sample standard deviation:
+
+$$\tilde{x}_{ij} = \frac{x_{ij} - \bar{x}_j}{s_{x,j}}$$
+
+- [`glmnet`](https://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html) package does this by default and reports coefficients on the original scale
+
+- $\lambda$ and $\alpha$ are __tuning parameters__
+
+- Have to select appropriate values based on test data / cross-validation
+
+- When using `glmnet`, the `cv.glmnet()` function will perform the cross-validation for you
+
+## Example data: NFL teams summary
+
+Created dataset using [`nflfastR`](https://www.nflfastr.com/) summarizing NFL team performances from 1999 to 2021
+
+```{r, warning = FALSE, message = FALSE}
+library(tidyverse)
+nfl_teams_data <- read_csv("http://www.stat.cmu.edu/cmsac/sure/2022/materials/data/sports/regression_examples/nfl_team_season_summary.csv")
+nfl_model_data <- nfl_teams_data %>%
+  mutate(score_diff = points_scored - points_allowed) %>%
+  # Only use rows with air yards
+  filter(season >= 2006) %>%
+  dplyr::select(-wins, -losses, -ties, -points_scored, -points_allowed, -season, -team)
+```
+
+## Introduction to `glmnet`
+
+We will use the [`glmnet`](https://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html#lin) package for ridge, lasso, and elastic net
+
+```{r load-glmnet}
+library(glmnet)
+```
+
+__Important__: `glmnet` does NOT use formula but instead `x` matrix of predictors and `y` vector of response
+
+- could use the `model.matrix()` function (which converts factors to 0-1 dummy variables!)
+
+```{r model-matrix}
+model_x <- nfl_model_data %>%
+  dplyr::select(-score_diff) %>%
+  as.matrix()
+model_y <- nfl_model_data$score_diff
+# model_x <- model.matrix(score_diff ~ ., nfl_model_data)[, -1]
+```
+
+## Initial model with `lm()`
+
+- What do the initial regression coefficients look like?
+
+- Use [`broom`](https://broom.tidymodels.org/reference/tidy.cv.glmnet.html) to tidy model output for plotting
+
+```{r init-lm, eval = FALSE}
+init_reg_fit <- lm(score_diff ~ ., nfl_model_data)
+library(broom)
+tidy(init_reg_fit) %>%
+  mutate(coef_sign = as.factor(sign(estimate)),
+         term = fct_reorder(term, estimate)) %>%
+  ggplot(aes(x = term, y = estimate, fill = coef_sign)) +
+  geom_bar(stat = "identity", color = "white") +
+  scale_fill_manual(values = c("darkred", "darkblue"), 
+                    guide = FALSE) +
+  coord_flip() + theme_bw()
+```
+
+## Ridge regression example
+
+Perform ridge regression using `glmnet` with `alpha = 0` (more on that later)
+
+By default it standardizes your predictors and fits model across a range of $\lambda$ values (can plot these!)
+  
+```{r init-ridge-ex, fig.align='center', fig.height=5}
+init_ridge_fit <- glmnet(model_x, model_y, alpha = 0)#<<
+plot(init_ridge_fit, xvar = "lambda")#<<
+```
+
+## Ridge regression example
+
+We use cross-validation to select $\lambda$ with `cv.glmnet()` which uses 10-folds by default
+
+- specify ridge regression with `alpha = 0`
+
+```{r ridge-ex, fig.align='center', fig.height=5}
+fit_ridge_cv <- cv.glmnet(model_x, model_y, alpha = 0) #<<
+plot(fit_ridge_cv)
+```
+
+## Tidy ridge regression
+
+```{r tidy-ridge-ex, eval = FALSE}
+tidy_ridge_coef <- tidy(fit_ridge_cv$glmnet.fit) #<<
+tidy_ridge_coef %>%
+  ggplot(aes(x = lambda, y = estimate, 
+             group = term)) +
+  scale_x_log10() +
+  geom_line(alpha = 0.75) +
+  geom_vline(xintercept = 
+               fit_ridge_cv$lambda.min) +
+  geom_vline(xintercept = 
+               fit_ridge_cv$lambda.1se, 
+             linetype = "dashed", color = "red") +
+  theme_bw()
+```
+
+- Could easily add color with legend for variables...
+
+## Tidy ridge regression
+
+```{r tidy-ridge-ex2, eval = FALSE}
+tidy_ridge_cv <- tidy(fit_ridge_cv)
+tidy_ridge_cv %>%
+  ggplot(aes(x = lambda, y = estimate)) +
+  geom_line() + scale_x_log10() +
+  geom_ribbon(aes(ymin = conf.low,
+                  ymax = conf.high), alpha = .25) +
+  geom_vline(xintercept = 
+               fit_ridge_cv$lambda.min) +
+  geom_vline(xintercept = 
+               fit_ridge_cv$lambda.1se,
+             linetype = "dashed", color = "red") +
+  theme_bw()
+```
+
+## Ridge regression coefficients
+
+Coefficients using the __1 standard error rule__ $\lambda$
+
+```{r ridge-coef-ex, eval = FALSE}
+tidy_ridge_coef %>%
+  filter(lambda == fit_ridge_cv$lambda.1se) %>%
+  mutate(coef_sign = as.factor(sign(estimate)),
+         term = fct_reorder(term, estimate)) %>%
+  ggplot(aes(x = term, y = estimate, fill = coef_sign)) +
+  geom_bar(stat = "identity", color = "white") +
+  scale_fill_manual(values = c("darkred", "darkblue"), guide = FALSE) +
+  coord_flip() + theme_bw()
+```
+
+## Lasso regression example
+
+Similar syntax to ridge but specify `alpha = 1`:
+
+```{r lasso-ex, eval = FALSE}
+fit_lasso_cv <- cv.glmnet(model_x, model_y, 
+                          alpha = 1) #<<
+tidy_lasso_coef <- tidy(fit_lasso_cv$glmnet.fit)
+tidy_lasso_coef %>%
+  ggplot(aes(x = lambda, y = estimate, 
+             group = term)) +
+  scale_x_log10() +
+  geom_line(alpha = 0.75) +
+  geom_vline(xintercept = 
+               fit_lasso_cv$lambda.min) +
+  geom_vline(xintercept = 
+               fit_lasso_cv$lambda.1se, 
+             linetype = "dashed", color = "red") +
+  theme_bw()
+```
+
+## Lasso regression example
+
+Number of non-zero predictors by $\lambda$
+
+```{r lasso-zero, eval = FALSE}
+tidy_lasso_cv <- tidy(fit_lasso_cv)
+tidy_lasso_cv %>%
+  ggplot(aes(x = lambda, y = nzero)) +
+  geom_line() +
+  geom_vline(xintercept = fit_lasso_cv$lambda.min) +
+  geom_vline(xintercept = fit_lasso_cv$lambda.1se, 
+             linetype = "dashed", color = "red") +
+  scale_x_log10() + theme_bw()
+```
+
+Reduction in variables using __1 standard error rule__ $\lambda$
+
+## Lasso regression example
+
+Coefficients using the __1 standard error rule__ $\lambda$
+
+```{r lasso-coef-ex, eval = FALSE}
+tidy_lasso_coef %>%
+  filter(lambda == fit_lasso_cv$lambda.1se) %>%
+  mutate(coef_sign = as.factor(sign(estimate)),
+         term = fct_reorder(term, estimate)) %>%
+  ggplot(aes(x = term, y = estimate, 
+             fill = coef_sign)) +
+  geom_bar(stat = "identity", color = "white") +
+  scale_fill_manual(values = c("darkred", "darkblue"), 
+                    guide = FALSE) +
+  coord_flip() +
+  theme_bw()
+```
+
+## Elastic net example
+
+Need to tune both $\lambda$ and $\alpha$ - can do so manually with our own folds
+
+```{r}
+set.seed(2020)
+fold_id <- sample(rep(1:10, length.out = nrow(model_x)))
+```
+
+Then use cross-validation with these folds for different candidate `alpha` values:
+
+```{r}
+cv_en_25 <- cv.glmnet(model_x, model_y, foldid = fold_id, alpha = .25)
+cv_en_50 <- cv.glmnet(model_x, model_y, foldid = fold_id, alpha = .5)
+cv_ridge <- cv.glmnet(model_x, model_y, foldid = fold_id, alpha = 0)
+cv_lasso <- cv.glmnet(model_x, model_y, foldid = fold_id, alpha = 1)
+```
+
+Can see which one had the lowest CV error among its candidate $\lambda$ values:
+
+```{r}
+which.min(c(min(cv_en_25$cvm), min(cv_en_50$cvm), min(cv_ridge$cvm), min(cv_lasso$cvm)))
+```
+
+## Elastic net example
+
+Can view same type of summary
+
+```{r en-zero, eval = FALSE}
+tidy(cv_en_50) %>%
+  ggplot(aes(x = lambda, y = nzero)) +
+  geom_line() +
+  geom_vline(xintercept = cv_en_50$lambda.min) +
+  geom_vline(xintercept = cv_en_50$lambda.1se, 
+             linetype = "dashed", 
+             color = "red") +
+  scale_x_log10() + 
+  theme_bw()
+```
+
+- More relaxed than lasso for variable entry
+
+#### Comparison of models based on holdout performance
+
+```{r}
+set.seed(2020)
+nfl_model_data <- nfl_model_data %>% mutate(test_fold = sample(rep(1:5, length.out = n())))
+holdout_predictions <- 
+  map_dfr(unique(nfl_model_data$test_fold), 
+          function(holdout) {
+            # Separate test and training data:
+            test_data <- nfl_model_data %>% filter(test_fold == holdout)
+            train_data <- nfl_model_data %>% filter(test_fold != holdout)
+            
+            # Repeat for matrices
+            test_x <- as.matrix(dplyr::select(test_data, -score_diff))
+            train_x <- as.matrix(dplyr::select(train_data, -score_diff))
+
+            # Train models:
+            lm_model <- lm(score_diff ~ ., data = train_data)
+            ridge_model <- cv.glmnet(train_x, train_data$score_diff, alpha = 0)
+            lasso_model <- cv.glmnet(train_x, train_data$score_diff, alpha = 1)
+            en_model <- cv.glmnet(train_x, train_data$score_diff, alpha = .5)
+
+            # Return tibble of holdout results:
+            tibble(lm_preds = predict(lm_model, newdata = test_data),
+                   ridge_preds = as.numeric(predict(ridge_model, newx = test_x)),
+                   lasso_preds = as.numeric(predict(lasso_model, newx = test_x)),
+                   en_preds = as.numeric(predict(en_model, newx = test_x)),
+                   test_actual = test_data$score_diff, test_fold = holdout) 
+          })
+```
+
+## Predictions compared to `lm`?
+
+Compute RMSE across folds with std error intervals
+
+```{r five-fold, eval = FALSE}
+holdout_predictions %>%
+  pivot_longer(lm_preds:en_preds, 
+               names_to = "type", values_to = "test_preds") %>%
+  group_by(type, test_fold) %>%
+  summarize(rmse =
+              sqrt(mean((test_actual - test_preds)^2))) %>% 
+  ggplot(aes(x = type, y = rmse)) + 
+  geom_point() + theme_bw() +
+  stat_summary(fun = mean, geom = "point", 
+               color = "red") + 
+  stat_summary(fun.data = mean_se, geom = "errorbar",
+               color = "red")
+```
+
+In this case `lm` actually "beat" regularization, but within intervals
+
+
+
