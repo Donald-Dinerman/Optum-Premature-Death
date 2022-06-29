@@ -1,0 +1,115 @@
+---
+title: "Predictive Modeling"
+output: html_document
+date: '2022-06-29'
+---
+
+# Goal
+
+Develop a model to predict length of life using Health Behaviors/Clinical Care/Social and Economic Factors.
+
+Determine variable to define length of life.
+
+Determine the mix of predictors (i.e., specific x's and categories).
+
+# Data Documentation
+
+```{r}
+#(https://www.countyhealthrankings.org/explore-health-rankings/measures-data-sources/county-health-rankings-model?componentType=factor-area&componentId=3)
+```
+
+* Additional Measure (not included in ranks)
+
+## Length of Life
+
+Premature Death: Years of potential life lost before age 75 per 100,000 population (age-adjusted)
+
+Life Expectancy: Average number of years a person can expect to live.
+
+## Health Behaviors
+
+*Tobacco*
+Adult Smoking: Percentage of adults who are current smokers (age-adjusted).
+
+*Sexual Activity*
+Sexually Transmitted Infections: Number of newly diagnosed chlamydia cases per 100,000 population.
+
+*Alcohol and Drug Use*
+Excessive Drinking: Percentage of adults reporting binge or heavy drinking (age-adjusted).
+
+Alcohol-Impaired Driving Deaths: Percentage of driving deaths with alcohol involvement.
+
+Drug Overdose Deaths*: Number of drug poisoning deaths per 100,000 population.
+
+Motor Vehicle Crash Deaths*: Number of motor vehicle crash deaths per 100,000 population.
+
+*Diet and Exercise*
+Adult Obesity: Percentage of the adult population (age 18 and older) that reports a body mass index (BMI) greater than or equal to 30 kg/m2 (age-adjusted).
+
+Food Environment Index: Index of factors that contribute to a healthy food environment, from 0 (worst) to 10 (best). 
+
+Physical Inactivity: Percentage of adults age 18 and over reporting no leisure-time physical activity (age-adjusted). 
+
+Access to Exercise Opportunities: Percentage of population with adequate access to locations for physical activity.
+
+Food Insecurity*: Percentage of population who lack adequate access to food.
+
+Limited Access to Healthy Foods*: Percentage of population who are low-income and do not live close to a grocery store.
+
+## Social and Economic Factors
+
+*Employment*
+Unemployment: Percentage of population ages 16 and older unemployed but seeking work.
+
+*Education*
+High School Completion: Percentage of adults ages 25 and over with a high school diploma or equivalent.
+
+Some College: Percentage of adults ages 25-44 with some post-secondary education.
+
+High School Graduation*: Percentage of ninth-grade cohort that graduates in four years.
+
+*Income*
+Income Inequality: Ratio of household income at the 80th percentile to income at the 20th percentile.
+
+Median Household Income*: The income where half of households in a county earn more and half of households earn less.
+
+Living Wage*: The hourly wage needed to cover basic household expenses plus all relevant taxes for a household of one adult and two children.
+
+*Community Safety*
+Violent Crime: Number of reported violent crime offenses per 100,000 population.
+
+Injury Deaths: Number of deaths due to injury per 100,000 population.
+
+Homicides*: Number of deaths due to homicide per 100,000 population.
+
+Suicides*: Number of deaths due to suicide per 100,000 population (age-adjusted).
+
+Firearm Fatalities*: Number of deaths due to firearms per 100,000 population.
+
+Juvenile Arrests*: Rate of delinquency cases per 1,000 juveniles.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
