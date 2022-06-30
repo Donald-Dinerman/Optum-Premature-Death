@@ -138,7 +138,9 @@ Created dataset using [`nflfastR`](https://www.nflfastr.com/) summarizing NFL te
 
 ```{r, warning = FALSE, message = FALSE}
 library(tidyverse)
+
 nfl_teams_data <- read_csv("http://www.stat.cmu.edu/cmsac/sure/2022/materials/data/sports/regression_examples/nfl_team_season_summary.csv")
+
 nfl_model_data <- nfl_teams_data %>%
   mutate(score_diff = points_scored - points_allowed) %>%
   # Only use rows with air yards
@@ -162,8 +164,9 @@ __Important__: `glmnet` does NOT use formula but instead `x` matrix of predictor
 model_x <- nfl_model_data %>%
   dplyr::select(-score_diff) %>%
   as.matrix()
+
 model_y <- nfl_model_data$score_diff
-# model_x <- model.matrix(score_diff ~ ., nfl_model_data)[, -1]
+# model_x <- model.matrix(score_diff ~ ., nfl_model_data)[, -1] #remove intercept, could be used to 0,1 classify categorical data
 ```
 
 ## Initial model with `lm()`
@@ -172,9 +175,11 @@ model_y <- nfl_model_data$score_diff
 
 - Use [`broom`](https://broom.tidymodels.org/reference/tidy.cv.glmnet.html) to tidy model output for plotting
 
-```{r init-lm, eval = FALSE}
-init_reg_fit <- lm(score_diff ~ ., nfl_model_data)
+```{r init-lm}
 library(broom)
+
+init_reg_fit <- lm(score_diff ~ ., nfl_model_data)
+
 tidy(init_reg_fit) %>%
   mutate(coef_sign = as.factor(sign(estimate)),
          term = fct_reorder(term, estimate)) %>%
@@ -182,7 +187,8 @@ tidy(init_reg_fit) %>%
   geom_bar(stat = "identity", color = "white") +
   scale_fill_manual(values = c("darkred", "darkblue"), 
                     guide = FALSE) +
-  coord_flip() + theme_bw()
+  coord_flip() + 
+  theme_bw()
 ```
 
 ## Ridge regression example
@@ -209,8 +215,9 @@ plot(fit_ridge_cv)
 
 ## Tidy ridge regression
 
-```{r tidy-ridge-ex, eval = FALSE}
+```{r tidy-ridge-ex}
 tidy_ridge_coef <- tidy(fit_ridge_cv$glmnet.fit) #<<
+
 tidy_ridge_coef %>%
   ggplot(aes(x = lambda, y = estimate, 
              group = term)) +
@@ -228,7 +235,7 @@ tidy_ridge_coef %>%
 
 ## Tidy ridge regression
 
-```{r tidy-ridge-ex2, eval = FALSE}
+```{r tidy-ridge-ex2}
 tidy_ridge_cv <- tidy(fit_ridge_cv)
 tidy_ridge_cv %>%
   ggplot(aes(x = lambda, y = estimate)) +
@@ -247,7 +254,7 @@ tidy_ridge_cv %>%
 
 Coefficients using the __1 standard error rule__ $\lambda$
 
-```{r ridge-coef-ex, eval = FALSE}
+```{r ridge-coef-ex}
 tidy_ridge_coef %>%
   filter(lambda == fit_ridge_cv$lambda.1se) %>%
   mutate(coef_sign = as.factor(sign(estimate)),
@@ -262,10 +269,12 @@ tidy_ridge_coef %>%
 
 Similar syntax to ridge but specify `alpha = 1`:
 
-```{r lasso-ex, eval = FALSE}
+```{r lasso-ex}
 fit_lasso_cv <- cv.glmnet(model_x, model_y, 
                           alpha = 1) #<<
+
 tidy_lasso_coef <- tidy(fit_lasso_cv$glmnet.fit)
+
 tidy_lasso_coef %>%
   ggplot(aes(x = lambda, y = estimate, 
              group = term)) +
@@ -279,12 +288,18 @@ tidy_lasso_coef %>%
   theme_bw()
 ```
 
+```{r}
+plot(fit_lasso_cv)
+```
+
+
 ## Lasso regression example
 
 Number of non-zero predictors by $\lambda$
 
-```{r lasso-zero, eval = FALSE}
+```{r lasso-zero}
 tidy_lasso_cv <- tidy(fit_lasso_cv)
+
 tidy_lasso_cv %>%
   ggplot(aes(x = lambda, y = nzero)) +
   geom_line() +
@@ -300,7 +315,7 @@ Reduction in variables using __1 standard error rule__ $\lambda$
 
 Coefficients using the __1 standard error rule__ $\lambda$
 
-```{r lasso-coef-ex, eval = FALSE}
+```{r lasso-coef-ex}
 tidy_lasso_coef %>%
   filter(lambda == fit_lasso_cv$lambda.1se) %>%
   mutate(coef_sign = as.factor(sign(estimate)),
@@ -342,8 +357,8 @@ which.min(c(min(cv_en_25$cvm), min(cv_en_50$cvm), min(cv_ridge$cvm), min(cv_lass
 
 Can view same type of summary
 
-```{r en-zero, eval = FALSE}
-tidy(cv_en_50) %>%
+```{r en-zero}
+tidy(cv_lasso) %>%
   ggplot(aes(x = lambda, y = nzero)) +
   geom_line() +
   geom_vline(xintercept = cv_en_50$lambda.min) +
@@ -359,10 +374,14 @@ tidy(cv_en_50) %>%
 #### Comparison of models based on holdout performance
 
 ```{r}
+#Can use tidy model/caret package to have easy functions for tuning, modeling, etc.
+
 set.seed(2020)
 nfl_model_data <- nfl_model_data %>% mutate(test_fold = sample(rep(1:5, length.out = n())))
+
 holdout_predictions <- 
   map_dfr(unique(nfl_model_data$test_fold), 
+          
           function(holdout) {
             # Separate test and training data:
             test_data <- nfl_model_data %>% filter(test_fold == holdout)
@@ -391,13 +410,12 @@ holdout_predictions <-
 
 Compute RMSE across folds with std error intervals
 
-```{r five-fold, eval = FALSE}
+```{r five-fold}
 holdout_predictions %>%
   pivot_longer(lm_preds:en_preds, 
                names_to = "type", values_to = "test_preds") %>%
   group_by(type, test_fold) %>%
-  summarize(rmse =
-              sqrt(mean((test_actual - test_preds)^2))) %>% 
+  summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>% 
   ggplot(aes(x = type, y = rmse)) + 
   geom_point() + theme_bw() +
   stat_summary(fun = mean, geom = "point", 
