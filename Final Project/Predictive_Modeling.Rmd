@@ -88,6 +88,13 @@ Firearm Fatalities*: Number of deaths due to firearms per 100,000 population.
 
 Juvenile Arrests*: Rate of delinquency cases per 1,000 juveniles.
 
+# Notes
+
+```{r}
+# Equity in ML
+(http://www.datasciencepublicpolicy.org/our-work/tools-guides/aequitas/)
+```
+
 # Read Data
 
 ```{r}
