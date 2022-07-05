@@ -92,7 +92,7 @@ Juvenile Arrests*: Rate of delinquency cases per 1,000 juveniles.
 
 ```{r}
 # Equity in ML
-(http://www.datasciencepublicpolicy.org/our-work/tools-guides/aequitas/)
+#(http://www.datasciencepublicpolicy.org/our-work/tools-guides/aequitas/)
 ```
 
 # Read Data
@@ -111,15 +111,42 @@ add_data = read_xlsx("CountyHealthRankingsData2022.xlsx", 6, skip = 1)
 ```{r}
 #remove features
 #(: remove demographic info, CI: remove conf int, Quartile: remove quartile rankings)
-select(data, -contains(c("CI", "Quartile", "(")))
+#Note: May want to consider demographic features
 
-select(add_data, -contains(c("CI", "Quartile", "(")))
+new_data = select(data, -contains(c("CI", "Quartile", "(")))
+
+new_add_data = select(add_data, -contains(c("CI", "Quartile", "(")))
+```
+
+```{r}
+#note: first row of a state is aggregated/averaged information at the state level
+#note: Other rows are simply aggregated at the county level
+comb_data = inner_join(new_data, new_add_data, by = c("FIPS", "State", "County"))
+
+head(comb_data)
 ```
 
 # EDA
 
+Note: Data is aggregated and therefore variables must be weighted by population when feasible.
+
+## Univariate
+
+Explore distribution of response and predictors
+
+Response: "Years of Potential Life Lost Rate", "Life Expectancy"
+
+Predictors: 
+
+```{r}
+
+```
+
+## Bivariate
 
 
+
+## Multivariate
 
 
 
