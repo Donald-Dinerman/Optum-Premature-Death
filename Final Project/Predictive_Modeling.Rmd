@@ -102,7 +102,7 @@ library(tidyverse)
 library(readxl)
 ```
 
-```{r}
+```{r, message=F, warning=F}
 data = read_xlsx("CountyHealthRankingsData2022.xlsx", 4, skip = 1)
 
 add_data = read_xlsx("CountyHealthRankingsData2022.xlsx", 6, skip = 1)
@@ -113,24 +113,42 @@ add_data = read_xlsx("CountyHealthRankingsData2022.xlsx", 6, skip = 1)
 #(: remove demographic info, CI: remove conf int, Quartile: remove quartile rankings)
 #Note: May want to consider demographic features
 
-new_data = select(data, -contains(c("CI", "Quartile", "(")))
+new_data = select(data, -contains(c("CI", "Quartile", "("), ignore.case = F))
 
-new_add_data = select(add_data, -contains(c("CI", "Quartile", "(")))
+new_add_data = select(add_data, -contains(c("CI", "Quartile", "("), ignore.case = F))
 ```
 
+# HELPPPPPPPPPPPPPPPPPPPPP
 ```{r}
 #note: first row of a state is aggregated/averaged information at the state level
 #note: Other rows are simply aggregated at the county level
 comb_data = inner_join(new_data, new_add_data, by = c("FIPS", "State", "County"))
 
-head(comb_data)
+#Identify and remove rows with unreliable data (Issue: This may affect counts for state level data)
+
+reliable_data = comb_data %>%
+  mutate(na_id = as.numeric(is.na(comb_data$Unreliable...4))) %>% #binary to is.na
+  filter(na_id == 1) #keep only rows w NA (reliable rows)
+
+#Why dont these match up
+comb_data %>%
+  group_by(State) %>%
+  slice(-1) %>%
+  summarise(a = sum(`Life Expectancy`, na.rm = T),
+            b = n(),
+            c = a/b)
+
+comb_data %>%
+  group_by(State) %>%
+  slice(1) %>%
+  summarise(a = `Life Expectancy`)
 ```
 
 # EDA
 
 Note: Data is aggregated and therefore variables must be weighted by population when feasible.
 
-## Univariate
+## Bivariate
 
 Explore distribution of response and predictors
 
@@ -138,6 +156,35 @@ Response: "Years of Potential Life Lost Rate", "Life Expectancy"
 
 Predictors: 
 
+*Tobacco*
+Adult Smoking: Percentage of adults who are current smokers (age-adjusted). (`% Smokers`)
+
+*Sexual Activity*
+Sexually Transmitted Infections: Number of newly diagnosed chlamydia cases per 100,000 population. (`# Chlamydia Cases`)
+
+*Alcohol and Drug Use*
+Excessive Drinking: Percentage of adults reporting binge or heavy drinking (age-adjusted). (`% Excessive Drinking`)
+
+Alcohol-Impaired Driving Deaths: Percentage of driving deaths with alcohol involvement. (`% Driving Deaths with Alcohol Involvement`)
+
+Drug Overdose Deaths*: Number of drug poisoning deaths per 100,000 population. (`# Drug Overdose Deaths`)
+
+Motor Vehicle Crash Deaths*: Number of motor vehicle crash deaths per 100,000 population. (`# Motor Vehicle Deaths`)
+
+*Diet and Exercise*
+Adult Obesity: Percentage of the adult population (age 18 and older) that reports a body mass index (BMI) greater than or equal to 30 kg/m2 (age-adjusted). (`% Adults with Obesity`)
+
+Food Environment Index: Index of factors that contribute to a healthy food environment, from 0 (worst) to 10 (best). (`Food Environment Index`)
+
+Physical Inactivity: Percentage of adults age 18 and over reporting no leisure-time physical activity (age-adjusted). (`% Physically Inactive`)
+
+Access to Exercise Opportunities: Percentage of population with adequate access to locations for physical activity. (`% With Access to Exercise Opportunities`)
+
+Food Insecurity*: Percentage of population who lack adequate access to food. (`% Food Insecure`)
+
+Limited Access to Healthy Foods*: Percentage of population who are low-income and do not live close to a grocery store. (`% Limited Access to Healthy Foods`)
+
+### Response
 ```{r}
 library(usmap)
 library(ggplot2)
@@ -187,9 +234,14 @@ plot_usmap(data = county_df, values = "Life_Expectancy", color = "black") +
   labs(title = "")
 ```
 
-## Bivariate
+### Predictors
 
-
+# HELPPPPPPPPPPPPPPPPPPPPP
+```{r}
+#give each person a group of predictors to explore against the two potential predictors (e.g., Tobacco & Sex, Alcohol/Drug, Diet/Exercise)
+#Have one of them explore demographic information
+#Discuss appropriate graphs when plotting two continuous variables with aggregated data (how to reflect population in scatterplot?)
+```
 
 ## Multivariate
 
