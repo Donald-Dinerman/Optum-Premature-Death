@@ -6,7 +6,7 @@ date: '2022-06-29'
 
 # Goal
 
-Develop a model to predict length of life using Health Behaviors/Clinical Care/Social and Economic Factors.
+Develop a model to predict length of life using Health Behaviors
 
 Determine variable to define length of life.
 
@@ -139,7 +139,52 @@ Response: "Years of Potential Life Lost Rate", "Life Expectancy"
 Predictors: 
 
 ```{r}
+library(usmap)
+library(ggplot2)
 
+#State
+state_df = comb_data %>%
+  group_by(State) %>%
+  slice(1) %>%
+  rename(., state = State, YPPL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy')
+
+#YPPL (low values good)
+plot_usmap(data = state_df, values = "YPPL", color = "black") + 
+  scale_fill_continuous(low = "white", high = "red", name = "YPPL (2020)", label = scales::comma) + 
+  theme(legend.position = "right") +
+  labs(title = "")
+
+#Life Expectancy (low values bad --> color adjust across two plots)
+plot_usmap(data = state_df, values = "Life_Expectancy", color = "black") + 
+  scale_fill_continuous(low = "red", high = "white", name = "Life Expectancy (2020)", label = scales::comma) + 
+  theme(legend.position = "right") +
+  labs(title = "")
+
+plot_usmap(data = state_df, values = "Life_Expectancy", color = "black", include = .south_region) + 
+  scale_fill_continuous(low = "red", high = "white", name = "Life Expectancy (2020)", label = scales::comma) + 
+  theme(legend.position = "right") +
+  labs(title = "")
+```
+
+```{r}
+#County
+county_df = comb_data %>%
+  group_by(State) %>%
+  slice(-1) %>%
+  rename(., fips = FIPS, YPPL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy') #%>%
+  #filter(Life_Expectancy < 100, YPPL < 25000)
+
+#YPPL (low values good)
+plot_usmap(data = county_df, values = "YPPL", color = "black") + 
+  scale_fill_continuous(low = "white", high = "red", name = "YPPL (2020)", label = scales::comma) + 
+  theme(legend.position = "right") +
+  labs(title = "")
+
+#Life Expectancy (low values bad --> color adjust across two plots)
+plot_usmap(data = county_df, values = "Life_Expectancy", color = "black") + 
+  scale_fill_continuous(low = "red", high = "white", name = "Life Expectancy (2020)", label = scales::comma) + 
+  theme(legend.position = "right") +
+  labs(title = "")
 ```
 
 ## Bivariate
