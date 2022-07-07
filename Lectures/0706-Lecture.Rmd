@@ -271,7 +271,7 @@ Use the `prcomp` function (uses SVD) for PCA on __centered__ and __scaled__ data
 ```{r}
 model_x <- as.matrix(dplyr::select(nfl_model_data, -score_diff))
 
-pca_nfl <- prcomp(model_x, center = TRUE, scale = TRUES) #<<
+pca_nfl <- prcomp(model_x, center = TRUE, scale = TRUE) #<<
 
 summary(pca_nfl)
 ```
