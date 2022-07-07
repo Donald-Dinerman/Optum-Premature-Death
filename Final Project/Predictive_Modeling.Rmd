@@ -103,7 +103,7 @@ library(readxl)
 ```
 
 ```{r, message=F, warning=F}
-data = read_xlsx("CountyHealthRankingsData2022.xlsx", 4, skip = 1)
+data = read_xlsx("Data/CountyHealthRankingsData2022.xlsx", 4, skip = 1)
 
 add_data = read_xlsx("CountyHealthRankingsData2022.xlsx", 6, skip = 1)
 ```
