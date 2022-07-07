@@ -103,9 +103,10 @@ library(readxl)
 ```
 
 ```{r, message=F, warning=F}
+#r project establishes root wd so we can call files from the wd w/o explictly writing out the wd
 data = read_xlsx("Data/CountyHealthRankingsData2022.xlsx", 4, skip = 1)
 
-add_data = read_xlsx("CountyHealthRankingsData2022.xlsx", 6, skip = 1)
+add_data = read_xlsx("Data/CountyHealthRankingsData2022.xlsx", 6, skip = 1)
 ```
 
 ```{r}
@@ -113,9 +114,9 @@ add_data = read_xlsx("CountyHealthRankingsData2022.xlsx", 6, skip = 1)
 #(: remove demographic info, CI: remove conf int, Quartile: remove quartile rankings)
 #Note: May want to consider demographic features
 
-new_data = select(data, -contains(c("CI", "Quartile", "("), ignore.case = F))
+new_data = select(data, -contains(c("CI", "Quartile"), ignore.case = F))
 
-new_add_data = select(add_data, -contains(c("CI", "Quartile", "("), ignore.case = F))
+new_add_data = select(add_data, -contains(c("CI", "Quartile"), ignore.case = F))
 ```
 
 # HELPPPPPPPPPPPPPPPPPPPPP
@@ -130,18 +131,27 @@ reliable_data = comb_data %>%
   mutate(na_id = as.numeric(is.na(comb_data$Unreliable...4))) %>% #binary to is.na
   filter(na_id == 1) #keep only rows w NA (reliable rows)
 
-#Why dont these match up
-comb_data %>%
-  group_by(State) %>%
-  slice(-1) %>%
-  summarise(a = sum(`Life Expectancy`, na.rm = T),
-            b = n(),
-            c = a/b)
-
+#Why don't these match up
 comb_data %>%
   group_by(State) %>%
   slice(1) %>%
   summarise(a = `Life Expectancy`)
+
+comb_data %>%
+  group_by(State) %>%
+  slice(-1) %>%
+  summarise(a = sum(`Life Expectancy` * `Population`, na.rm = T),
+            b = sum(`Population`, na.rm = T),
+            c = a/b)
+
+reliable_data %>%
+  group_by(State) %>%
+  slice(-1) %>%
+  summarise(a = sum(`Life Expectancy` * `Population`, na.rm = T),
+            b = sum(`Population`, na.rm = T),
+            c = a/b)
+
+names(comb_data)
 ```
 
 # EDA
@@ -190,7 +200,7 @@ library(usmap)
 library(ggplot2)
 
 #State
-state_df = comb_data %>%
+state_df = reliable_data %>%
   group_by(State) %>%
   slice(1) %>%
   rename(., state = State, YPPL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy')
@@ -215,7 +225,7 @@ plot_usmap(data = state_df, values = "Life_Expectancy", color = "black", include
 
 ```{r}
 #County
-county_df = comb_data %>%
+county_df = reliable_data %>%
   group_by(State) %>%
   slice(-1) %>%
   rename(., fips = FIPS, YPPL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy') #%>%
@@ -234,6 +244,49 @@ plot_usmap(data = county_df, values = "Life_Expectancy", color = "black") +
   labs(title = "")
 ```
 
+#### Demographic
+
+```{r}
+#state level demo data
+demo_response_df = reliable_data %>%
+  group_by(State) %>%
+  slice(1) %>%
+  ungroup(State) %>%
+  rename(., state = State, YPPL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy') %>%
+  select(., contains(c("YPLL Rate (", "state")))
+
+#remove unreliable demo information
+index = as.numeric(is.na(demo_response_df$`YPLL Rate (AIAN) Unreliable`))
+demo_response_df$`YPLL Rate (AIAN)`[which(index == 0)] = NA
+
+#long format data
+demo_response_clean_df = demo_response_df %>%
+  select(., -contains("Unreliable")) %>%
+  pivot_longer(cols = !state,
+               names_to = "Race", values_to = "YPLL")
+
+demo_response_clean_df
+```
+
+```{r}
+demo_map = function(df = demo_response_clean_df, Race_Type) {
+  
+  plot_usmap(data = filter(df, Race == Race_Type), values = "YPLL", color = "black") + 
+  scale_fill_continuous(low = "white", high = "red", name = "YPPL (2020)", label = scales::comma) + 
+  theme(legend.position = "right") +
+  labs(title = Race_Type)
+  
+}
+
+demo_map(Race_Type = "YPLL Rate (AIAN)")
+demo_map(Race_Type = "YPLL Rate (Asian)")
+demo_map(Race_Type = "YPLL Rate (Black)")
+demo_map(Race_Type = "YPLL Rate (Hispanic)")
+demo_map(Race_Type = "YPLL Rate (white)")
+```
+
+
+
 ### Predictors
 
 # HELPPPPPPPPPPPPPPPPPPPPP
@@ -241,6 +294,7 @@ plot_usmap(data = county_df, values = "Life_Expectancy", color = "black") +
 #give each person a group of predictors to explore against the two potential predictors (e.g., Tobacco & Sex, Alcohol/Drug, Diet/Exercise)
 #Have one of them explore demographic information
 #Discuss appropriate graphs when plotting two continuous variables with aggregated data (how to reflect population in scatterplot?)
+#Can scatterplot variables that control for population (e.g., proportion/%/per 100k)
 ```
 
 ## Multivariate
