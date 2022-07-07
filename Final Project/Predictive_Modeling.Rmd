@@ -289,7 +289,7 @@ demo_map(Race_Type = "YPLL Rate (white)")
 
 ### Predictors
 
-# HELPPPPPPPPPPPPPPPPPPPPP
+#### Tobacco Sex
 ```{r}
 #give each person a group of predictors to explore against the two potential predictors (e.g., Tobacco & Sex, Alcohol/Drug, Diet/Exercise)
 #Have one of them explore demographic information
