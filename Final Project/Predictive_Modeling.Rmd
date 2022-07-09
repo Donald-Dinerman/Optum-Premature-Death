@@ -22,7 +22,7 @@ Determine the mix of predictors (i.e., specific x's and categories).
 
 ## Length of Life
 
-Premature Death: Years of potential life (YPPL) lost before age 75 per 100,000 population (age-adjusted)
+Premature Death: Years of potential life (YPLL) lost before age 75 per 100,000 population (age-adjusted)
 
 Life Expectancy: Average number of years a person can expect to live.
 
@@ -150,13 +150,11 @@ reliable_data %>%
   summarise(a = sum(`Life Expectancy` * `Population`, na.rm = T),
             b = sum(`Population`, na.rm = T),
             c = a/b)
-
-names(comb_data)
 ```
 
 # EDA
 
-Note: Data is aggregated and therefore variables must be weighted by population when feasible.
+Note: Data is aggregated and therefore variables must be weighted by population when feasible. By deafult, many variables are weighted by population.
 
 ## Bivariate
 
@@ -203,24 +201,26 @@ library(ggplot2)
 state_df = reliable_data %>%
   group_by(State) %>%
   slice(1) %>%
-  rename(., state = State, YPPL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy')
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy')
 
-#YPPL (low values good)
-plot_usmap(data = state_df, values = "YPPL", color = "black") + 
-  scale_fill_continuous(low = "white", high = "red", name = "YPPL (2020)", label = scales::comma) + 
+#YPLL (low values good)
+plot_usmap(data = state_df, values = "YPLL", color = "black") + 
+  scale_fill_continuous(name = "YPLL (2020)", low = "white", high = "red", 
+                        label = scales::comma, limits = c(5000,11500)) + 
+  theme(legend.position = "right") +
+  labs(title = "")
+
+plot_usmap(data = state_df, values = "YPLL", color = "black", include = .south_region) + #SPecify region
+  scale_fill_continuous(name = "YPLL (2020)",  low = "white", high = "red",  
+                        label = scales::comma, limits = c(5000,11500)) + 
   theme(legend.position = "right") +
   labs(title = "")
 
 #Life Expectancy (low values bad --> color adjust across two plots)
-plot_usmap(data = state_df, values = "Life_Expectancy", color = "black") + 
-  scale_fill_continuous(low = "red", high = "white", name = "Life Expectancy (2020)", label = scales::comma) + 
-  theme(legend.position = "right") +
-  labs(title = "")
-
-plot_usmap(data = state_df, values = "Life_Expectancy", color = "black", include = .south_region) + 
-  scale_fill_continuous(low = "red", high = "white", name = "Life Expectancy (2020)", label = scales::comma) + 
-  theme(legend.position = "right") +
-  labs(title = "")
+# plot_usmap(data = state_df, values = "Life_Expectancy", color = "black") + 
+#   scale_fill_continuous(low = "red", high = "white", name = "Life Expectancy (2020)", label = scales::comma) + 
+#   theme(legend.position = "right") +
+#   labs(title = "")
 ```
 
 ```{r}
@@ -228,20 +228,21 @@ plot_usmap(data = state_df, values = "Life_Expectancy", color = "black", include
 county_df = reliable_data %>%
   group_by(State) %>%
   slice(-1) %>%
-  rename(., fips = FIPS, YPPL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy') #%>%
-  #filter(Life_Expectancy < 100, YPPL < 25000)
+  rename(., fips = FIPS, YPLL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy') #%>%
+  #filter(Life_Expectancy < 100, YPLL < 25000)
 
-#YPPL (low values good)
-plot_usmap(data = county_df, values = "YPPL", color = "black") + 
-  scale_fill_continuous(low = "white", high = "red", name = "YPPL (2020)", label = scales::comma) + 
+#YPLL (low values good)
+plot_usmap(data = county_df, values = "YPLL", color = "black") + 
+  scale_fill_continuous(name = "YPLL (2020)",  low = "white", high = "red",  
+                        label = scales::comma) + 
   theme(legend.position = "right") +
   labs(title = "")
 
 #Life Expectancy (low values bad --> color adjust across two plots)
-plot_usmap(data = county_df, values = "Life_Expectancy", color = "black") + 
-  scale_fill_continuous(low = "red", high = "white", name = "Life Expectancy (2020)", label = scales::comma) + 
-  theme(legend.position = "right") +
-  labs(title = "")
+# plot_usmap(data = county_df, values = "Life_Expectancy", color = "black") + 
+#   scale_fill_continuous(low = "red", high = "white", name = "Life Expectancy (2020)", label = scales::comma) + 
+#   theme(legend.position = "right") +
+#   labs(title = "")
 ```
 
 #### Demographic
@@ -252,8 +253,15 @@ demo_response_df = reliable_data %>%
   group_by(State) %>%
   slice(1) %>%
   ungroup(State) %>%
-  rename(., state = State, YPPL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy') %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy') %>%
   select(., contains(c("YPLL Rate (", "state")))
+
+#Check unreliable demo ypll across states
+# quick = function(x){x %>% is.na() %>% sum()}
+# 
+# demo_response_df %>%
+#   select(., contains("Unreliable")) %>%
+#   apply(., MARGIN = 2, FUN = quick)
 
 #remove unreliable demo information
 index = as.numeric(is.na(demo_response_df$`YPLL Rate (AIAN) Unreliable`))
@@ -264,20 +272,19 @@ demo_response_clean_df = demo_response_df %>%
   select(., -contains("Unreliable")) %>%
   pivot_longer(cols = !state,
                names_to = "Race", values_to = "YPLL")
-
-demo_response_clean_df
 ```
 
 ```{r}
-demo_map = function(df = demo_response_clean_df, Race_Type) {
+demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c()) {
   
   plot_usmap(data = filter(df, Race == Race_Type), values = "YPLL", color = "black") + 
-  scale_fill_continuous(low = "white", high = "red", name = "YPPL (2020)", label = scales::comma) + 
+  scale_fill_continuous(low = "white", high = "red", name = "YPLL (2020)", label = scales::comma, limits = limit_set) + 
   theme(legend.position = "right") +
   labs(title = Race_Type)
   
 }
 
+#Difficult to set standard limits because range varies significantly across demographic groups
 demo_map(Race_Type = "YPLL Rate (AIAN)")
 demo_map(Race_Type = "YPLL Rate (Asian)")
 demo_map(Race_Type = "YPLL Rate (Black)")
@@ -288,13 +295,72 @@ demo_map(Race_Type = "YPLL Rate (white)")
 
 
 ### Predictors
+#HELP: How to make function that takes variable name and outputs graph using ggplot
 
-#### Tobacco Sex
+```{r}
+test_func = function(df = state_df, var_name){ #Tidy eval helpers?
+  ggplot(df, aes(x = var_name)) +
+    geom_histogram()
+}
+
+#test_func(var_name = Deaths)
+```
+
 ```{r}
 #give each person a group of predictors to explore against the two potential predictors (e.g., Tobacco & Sex, Alcohol/Drug, Diet/Exercise)
-#Have one of them explore demographic information
+#Explore demographic information for respective var (if available, I see only drug overdose across all health behavior var)
 #Discuss appropriate graphs when plotting two continuous variables with aggregated data (how to reflect population in scatterplot?)
 #Can scatterplot variables that control for population (e.g., proportion/%/per 100k)
+```
+
+#### Tobacco 
+
+```{r}
+tobacco_sex_df = reliable_data %>%
+  group_by(State) %>%
+  slice(1) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
+  summarise(smoke = `% Smokers`, std = `Chlamydia Rate`, YPLL)
+
+#map
+plot_usmap(data = tobacco_sex_df, values = "smoke", color = "black") + 
+  scale_fill_continuous(name = "% Smokers (2020)",  low = "white", high = "red",  
+                        label = scales::comma) + 
+  theme(legend.position = "right") +
+  labs(title = "")
+
+#plot against YPLL
+ggplot(tobacco_sex_df, aes(x = YPLL, y = smoke)) +
+  geom_point(alpha = 0.5) + #geom_smooth(se = F, method = "lm") +
+  theme_bw() +
+  labs(title = "YPLL Increases As Smoking Prevelance Increases", x = "Years of Potential Life Lost (YPLL)", y = "% Smokers")
+
+#cor(tobacco_sex_df$YPLL, tobacco_sex_df$smoke) #0.82
+```
+
+#### Sex
+
+```{r}
+#map
+plot_usmap(data = tobacco_sex_df, values = "std", color = "black") + 
+  scale_fill_continuous(name = "# Chlamydia Cases (2020)",  low = "white", high = "red",  
+                        label = scales::comma) + 
+  theme(legend.position = "right") +
+  labs(title = "")
+
+#plot against YPLL
+ggplot(tobacco_sex_df, aes(x = std, y = smoke)) +
+  geom_point(alpha = 0.5) + #geom_smooth(se = F, method = "lm") + #no relationship
+  theme_bw() +
+  labs(title = "No Relationship Between Smoking and STD Prevelance", x = "Chlamydia Rate", y = "% Smokers")
+
+#plot against YPLL
+ggplot(tobacco_sex_df, aes(x = YPLL, y = std)) +
+  geom_point(alpha = 0.5) + #geom_smooth(se = F, method = "lm") + #weak positive relationship
+  theme_bw() +
+  labs(title = "YPLL Increases Slightly As STD Prevelance Increases", x = "Years of Potential Life Lost (YPLL)", y = "Chlamydia Rate")
+
+#cor(tobacco_sex_df$YPLL, tobacco_sex_df$std) #0.3735421
 ```
 
 ## Multivariate
