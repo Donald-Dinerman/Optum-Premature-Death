@@ -292,8 +292,6 @@ demo_map(Race_Type = "YPLL Rate (Hispanic)")
 demo_map(Race_Type = "YPLL Rate (white)")
 ```
 
-
-
 ### Predictors
 #HELP: How to make function that takes variable name and outputs graph using ggplot
 
@@ -370,7 +368,22 @@ ggplot(tobacco_sex_df, aes(x = YPLL, y = std)) +
 
 # Modeling
 
+#HELP
+What is my sample size using this aggregated data (also should I remove DC when doing scatterplots and building models)
+DC Population bigger than some states
+```{r}
+#model assumptions
+library(ggfortify)
 
+simple_model = lm(YPLL ~ smoke + std, data = tobacco_sex_df)
+
+autoplot(simple_model, ncol = 2) + theme_bw() #one or two outliers but otherwise pretty good
+
+#Output
+summary(simple_model) #this is actually pretty good and then x's seem to be independent of each other
+
+#Due to potential violations of normality, (1) can try removing outliers, (2) use nonparametric regression
+```
 
 
 
