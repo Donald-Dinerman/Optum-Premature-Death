@@ -292,15 +292,15 @@ demo_map(Race_Type = "YPLL Rate (white)")
 ```
 
 ### Predictors
-#HELP: How to make function that takes variable name and outputs graph using ggplot
 
-```{r}
-test_func = function(df = state_df, var_name){ #Tidy eval helpers?
-  ggplot(df, aes(x = var_name)) +
+```{r, include=F}
+test_func = function(df = state_df, var_name){ 
+  
+  ggplot(df, aes(x = get(var_name))) + #use get to transform char to var name
     geom_histogram()
 }
 
-#test_func(var_name = Deaths)
+test_func(var_name = "Deaths")
 ```
 
 ```{r}
@@ -309,6 +309,76 @@ test_func = function(df = state_df, var_name){ #Tidy eval helpers?
 #Discuss appropriate graphs when plotting two continuous variables with aggregated data (how to reflect population in scatterplot?)
 #Can scatterplot variables that control for population (e.g., proportion/%/per 100k)
 ```
+
+```{r}
+pred_df = reliable_data %>%
+  group_by(State) %>%
+  slice(1) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
+  summarise(#alcohol/drug
+            drink_per = `% Excessive Drinking`, dui_per = `% Driving Deaths with Alcohol Involvement`, 
+            od_num = `# Drug Overdose Deaths`, vehicle_death = `# Motor Vehicle Deaths`, obesity_rate = `% Adults with Obesity`, 
+            #food/exercise
+            food_index = `Food Environment Index`, inactive_per = `% Physically Inactive`, 
+            exercise_access_per = `% With Access to Exercise Opportunities`, food_per = `% Food Insecure`, 
+            healthy_access_per = `% Limited Access to Healthy Foods`,
+            #tobacco
+            smoke = `% Smokers`, 
+            #sex
+            std = `Chlamydia Rate`, 
+            #response
+            YPLL)
+
+#Linear Correlation Matrix (Response vs Predictors)
+cor(pred_df[,-1], pred_df[,length(pred_df)]) %>% 
+  round(., 3) %>% 
+  as.data.frame() %>% 
+  mutate(YPLL_abs = abs(YPLL)) %>%
+  arrange(desc(YPLL_abs))
+```
+
+
+```{r}
+no_na_pred_df = reliable_data %>%
+  group_by(State, County) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
+  summarise(#alcohol/drug
+            drink_per = `% Excessive Drinking`, dui_per = `% Driving Deaths with Alcohol Involvement`, 
+            od_num = `# Drug Overdose Deaths`, vehicle_death = `# Motor Vehicle Deaths`, obesity_rate = `% Adults with Obesity`, 
+            #food/exercise
+            food_index = `Food Environment Index`, inactive_per = `% Physically Inactive`, 
+            exercise_access_per = `% With Access to Exercise Opportunities`, food_per = `% Food Insecure`, 
+            healthy_access_per = `% Limited Access to Healthy Foods`,
+            #tobacco
+            smoke = `% Smokers`, 
+            #sex
+            std = `Chlamydia Rate`, 
+            #response
+            YPLL) %>%
+  na.omit()
+
+county_df = reliable_data %>%
+  group_by(State, County) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
+  summarise(#alcohol/drug
+            drink_per = `% Excessive Drinking`, dui_per = `% Driving Deaths with Alcohol Involvement`, 
+            od_num = `# Drug Overdose Deaths`, vehicle_death = `# Motor Vehicle Deaths`, obesity_rate = `% Adults with Obesity`, 
+            #food/exercise
+            food_index = `Food Environment Index`, inactive_per = `% Physically Inactive`, 
+            exercise_access_per = `% With Access to Exercise Opportunities`, food_per = `% Food Insecure`, 
+            healthy_access_per = `% Limited Access to Healthy Foods`,
+            #tobacco
+            smoke = `% Smokers`, 
+            #sex
+            std = `Chlamydia Rate`, 
+            #response
+            YPLL)
+
+setdiff(county_df, no_na_pred_df) %>%
+  is.na() %>% 
+  colSums()
+```
+
 
 #### Tobacco 
 
@@ -367,11 +437,8 @@ ggplot(tobacco_sex_df, aes(x = YPLL, y = std)) +
 
 # Modeling
 
-#HELP
-What is my sample size using this aggregated data (also should I remove DC when doing scatterplots and building models)
-DC Population bigger than some states
 ```{r}
-#model assumptions
+#model assumptions (State)
 library(ggfortify)
 
 simple_model = lm(YPLL ~ smoke + std, data = tobacco_sex_df)
@@ -382,8 +449,24 @@ autoplot(simple_model, ncol = 2) + theme_bw() #one or two outliers but otherwise
 summary(simple_model) #this is actually pretty good and then x's seem to be independent of each other
 
 #Due to potential violations of normality, (1) can try removing outliers, (2) use nonparametric regression
+#Aggregated data: Underestimates variability, Inflated SE, Inflated R^2
 ```
 
+```{r}
+#County
+county_tobacco_sex_df = reliable_data %>%
+  group_by(State, County) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
+  summarise(smoke = `% Smokers`, std = `Chlamydia Rate`, YPLL) %>%
+  na.omit()
+
+county_simple_model = lm(YPLL ~ smoke + std, data = county_tobacco_sex_df)
+
+autoplot(county_simple_model, ncol = 2) + theme_bw() #one or two outliers but otherwise pretty good
+
+#Output
+summary(county_simple_model) #this is actually pretty good and then x's seem to be independent of each other
+```
 
 
 # Conclusions
