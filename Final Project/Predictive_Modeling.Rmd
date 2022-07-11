@@ -119,7 +119,6 @@ new_data = select(data, -contains(c("CI", "Quartile"), ignore.case = F))
 new_add_data = select(add_data, -contains(c("CI", "Quartile"), ignore.case = F))
 ```
 
-# HELPPPPPPPPPPPPPPPPPPPPP
 ```{r}
 #note: first row of a state is aggregated/averaged information at the state level
 #note: Other rows are simply aggregated at the county level
@@ -131,7 +130,7 @@ reliable_data = comb_data %>%
   mutate(na_id = as.numeric(is.na(comb_data$Unreliable...4))) %>% #binary to is.na
   filter(na_id == 1) #keep only rows w NA (reliable rows)
 
-#Why don't these match up
+#Why don't these match up (there's a minor computational discrepancy to the +- 0.2 lvl)
 comb_data %>%
   group_by(State) %>%
   slice(1) %>%
