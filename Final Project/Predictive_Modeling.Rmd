@@ -117,36 +117,63 @@ add_data = read_xlsx("Data/CountyHealthRankingsData2022.xlsx", 6, skip = 1)
 new_data = select(data, -contains(c("CI", "Quartile"), ignore.case = F))
 
 new_add_data = select(add_data, -contains(c("CI", "Quartile"), ignore.case = F))
+
+comb_data = inner_join(new_data, new_add_data, by = c("FIPS", "State", "County"))
 ```
+
 
 ```{r}
 #note: first row of a state is aggregated/averaged information at the state level
 #note: Other rows are simply aggregated at the county level
-comb_data = inner_join(new_data, new_add_data, by = c("FIPS", "State", "County"))
 
 #Identify and remove rows with unreliable data (Issue: This may affect counts for state level data)
 
 reliable_data = comb_data %>%
   mutate(na_id = as.numeric(is.na(comb_data$Unreliable...4))) %>% #binary to is.na
   filter(na_id == 1) #keep only rows w NA (reliable rows)
+```
 
+```{r}
+#Can Cluster by county attribute (on population lvl) (Population)
+#County clustering (urban, suburban, rural) within state
+#Capture county characteristics and state characteristics
+
+#(https://www.hudexchange.info/faqs/programs/cdbg-entitlement-program/urban-county/where-is-the-term-urban-county-defined-within-the-cdbg-program-and-how/#:~:text=This%20provision%20defines%20an%20urban,including%20metropolitan%20cities%20located%20therein)
+#(https://www.hhs.gov/guidance/document/defining-rural-population#:~:text=All%20counties%20that%20are%20not,as%20either%20Metro%20or%20Micro)
+sub_upper_lim = 200000
+sub_lower_lim = 50000
+
+reliable_data = reliable_data %>%
+  mutate(county_class = 
+           case_when(Population < (sub_upper_lim) & Population >= (sub_lower_lim) ~ "Suburban",
+                     Population >= (sub_upper_lim) ~ "Urban", 
+                     TRUE ~ "Rural")) #%>% select(State, County, county_class, Population)
+
+reliable_data %>%
+  group_by(State, county_class) %>%
+  summarise(smoke = round(mean(`% Smokers`), 2))
+```
+
+```{r,include=F}
+#Comparing YPLL state aggregated calculations to see impact of removing unreliable county data
+#Research what age-adjusted calculations do
 #Why don't these match up (there's a minor computational discrepancy to the +- 0.2 lvl)
 comb_data %>%
   group_by(State) %>%
   slice(1) %>%
-  summarise(a = `Life Expectancy`)
+  summarise(a = `Years of Potential Life Lost Rate`)
 
 comb_data %>%
   group_by(State) %>%
   slice(-1) %>%
-  summarise(a = sum(`Life Expectancy` * `Population`, na.rm = T),
+  summarise(a = sum(`Years of Potential Life Lost Rate` * `Population`, na.rm = T),
             b = sum(`Population`, na.rm = T),
             c = a/b)
 
 reliable_data %>%
   group_by(State) %>%
   slice(-1) %>%
-  summarise(a = sum(`Life Expectancy` * `Population`, na.rm = T),
+  summarise(a = sum(`Years of Potential Life Lost Rate` * `Population`, na.rm = T),
             b = sum(`Population`, na.rm = T),
             c = a/b)
 ```
@@ -155,11 +182,7 @@ reliable_data %>%
 
 Note: Data is aggregated and therefore variables must be weighted by population when feasible. By deafult, many variables are weighted by population.
 
-## Bivariate
-
-Explore distribution of response and predictors
-
-Response: "Years of Potential Life Lost Rate", "Life Expectancy"
+Response: "Years of Potential Life Lost Rate" (YPLL)
 
 Predictors: 
 
@@ -191,7 +214,7 @@ Food Insecurity*: Percentage of population who lack adequate access to food. (`%
 
 Limited Access to Healthy Foods*: Percentage of population who are low-income and do not live close to a grocery store. (`% Limited Access to Healthy Foods`)
 
-### Response
+## Response
 ```{r}
 library(usmap)
 library(ggplot2)
@@ -244,7 +267,7 @@ plot_usmap(data = county_df, values = "YPLL", color = "black") +
 #   labs(title = "")
 ```
 
-#### Demographic
+### Demographic
 
 ```{r}
 #state level demo data
@@ -291,7 +314,7 @@ demo_map(Race_Type = "YPLL Rate (Hispanic)")
 demo_map(Race_Type = "YPLL Rate (white)")
 ```
 
-### Predictors
+## Predictors
 
 ```{r, include=F}
 test_func = function(df = state_df, var_name){ 
@@ -304,13 +327,7 @@ test_func(var_name = "Deaths")
 ```
 
 ```{r}
-#give each person a group of predictors to explore against the two potential predictors (e.g., Tobacco & Sex, Alcohol/Drug, Diet/Exercise)
-#Explore demographic information for respective var (if available, I see only drug overdose across all health behavior var)
-#Discuss appropriate graphs when plotting two continuous variables with aggregated data (how to reflect population in scatterplot?)
-#Can scatterplot variables that control for population (e.g., proportion/%/per 100k)
-```
-
-```{r}
+#State Level
 pred_df = reliable_data %>%
   group_by(State) %>%
   slice(1) %>%
@@ -337,8 +354,42 @@ cor(pred_df[,-1], pred_df[,length(pred_df)]) %>%
   arrange(desc(YPLL_abs))
 ```
 
-
 ```{r}
+#County Level
+df = reliable_data %>%
+  group_by(State, County) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
+  summarise(#alcohol/drug
+            drink_per = `% Excessive Drinking`, dui_per = `% Driving Deaths with Alcohol Involvement`, 
+            od_num = `# Drug Overdose Deaths`, vehicle_death = `# Motor Vehicle Deaths`, obesity_rate = `% Adults with Obesity`, 
+            #food/exercise
+            food_index = `Food Environment Index`, inactive_per = `% Physically Inactive`, 
+            exercise_access_per = `% With Access to Exercise Opportunities`, food_per = `% Food Insecure`, 
+            healthy_access_per = `% Limited Access to Healthy Foods`,
+            #tobacco
+            smoke = `% Smokers`, 
+            #sex
+            std = `Chlamydia Rate`, 
+            #response
+            YPLL) %>% 
+  na.omit()
+
+#Remove char col
+
+num_df = df[ , !sapply(df, is.character)]
+
+#Linear Correlation Matrix (Response vs Predictors)
+cor(num_df, df[,length(df)]) %>% 
+  round(., 3) %>% 
+  as.data.frame() %>% 
+  mutate(YPLL_abs = abs(YPLL)) %>%
+  arrange(desc(YPLL_abs))
+```
+
+
+```{r, include = F}
+#Dataframe with all the predictors
+#Comparing county differences if we omit all NAs
 no_na_pred_df = reliable_data %>%
   group_by(State, County) %>%
   rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
@@ -379,61 +430,77 @@ setdiff(county_df, no_na_pred_df) %>%
   colSums()
 ```
 
-
 #### Tobacco 
 
 ```{r}
-tobacco_sex_df = reliable_data %>%
+state_tobacco_sex_df = reliable_data %>%
   group_by(State) %>%
   slice(1) %>%
   rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
   summarise(smoke = `% Smokers`, std = `Chlamydia Rate`, YPLL)
 
+county_tobacco_sex_df = reliable_data %>%
+  group_by(State, County) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
+  summarise(county_class, smoke = `% Smokers`, std = `Chlamydia Rate`, YPLL) %>%
+  na.omit()
+
 #map
-plot_usmap(data = tobacco_sex_df, values = "smoke", color = "black") + 
+plot_usmap(data = state_tobacco_sex_df, values = "smoke", color = "black") + 
   scale_fill_continuous(name = "% Smokers (2020)",  low = "white", high = "red",  
                         label = scales::comma) + 
   theme(legend.position = "right") +
   labs(title = "")
 
-#plot against YPLL
-ggplot(tobacco_sex_df, aes(x = YPLL, y = smoke)) +
-  geom_point(alpha = 0.5) + #geom_smooth(se = F, method = "lm") +
+#plot against YPLL (State) cor = 0.82
+ggplot(state_tobacco_sex_df, aes(x = YPLL, y = smoke)) +
+  geom_point(alpha = 0.25) + #geom_smooth(se = F, method = "lm") +
   theme_bw() +
   labs(title = "YPLL Increases As Smoking Prevelance Increases", x = "Years of Potential Life Lost (YPLL)", y = "% Smokers")
 
-#cor(tobacco_sex_df$YPLL, tobacco_sex_df$smoke) #0.82
+#plot against YPLL (County) cor = 0.74
+ggplot(county_tobacco_sex_df, aes(x = YPLL, y = smoke, color = county_class)) +
+  geom_point(alpha = 0.25) + #geom_smooth(se = F, method = "lm") +
+  theme_bw() +
+  labs(title = "YPLL Increases As Smoking Prevelance Increases", x = "Years of Potential Life Lost (YPLL)", y = "% Smokers",
+       color = "County Class")
 ```
 
 #### Sex
 
 ```{r}
 #map
-plot_usmap(data = tobacco_sex_df, values = "std", color = "black") + 
+plot_usmap(data = state_tobacco_sex_df, values = "std", color = "black") + 
   scale_fill_continuous(name = "# Chlamydia Cases (2020)",  low = "white", high = "red",  
                         label = scales::comma) + 
   theme(legend.position = "right") +
   labs(title = "")
 
-#plot against YPLL
-ggplot(tobacco_sex_df, aes(x = std, y = smoke)) +
-  geom_point(alpha = 0.5) + #geom_smooth(se = F, method = "lm") + #no relationship
+#plot against smoke (State)
+ggplot(state_tobacco_sex_df, aes(x = std, y = smoke)) +
+  geom_point(alpha = 0.25) + geom_smooth(se = F, method = "lm") + #no relationship
   theme_bw() +
   labs(title = "No Relationship Between Smoking and STD Prevelance", x = "Chlamydia Rate", y = "% Smokers")
 
-#plot against YPLL
-ggplot(tobacco_sex_df, aes(x = YPLL, y = std)) +
-  geom_point(alpha = 0.5) + #geom_smooth(se = F, method = "lm") + #weak positive relationship
+#plot against smoke (County)
+ggplot(county_tobacco_sex_df, aes(x = std, y = smoke, color = county_class)) +
+  geom_point(alpha = 0.25) + geom_smooth(se = F, method = "lm") + #no relationship
   theme_bw() +
-  labs(title = "YPLL Increases Slightly As STD Prevelance Increases", x = "Years of Potential Life Lost (YPLL)", y = "Chlamydia Rate")
+  labs(title = "County Level By Class Suggests Relationship", x = "Chlamydia Rate", y = "% Smokers", color = "County Class")
 
-#cor(tobacco_sex_df$YPLL, tobacco_sex_df$std) #0.3735421
+#plot against YPLL (State) cor = 0.37
+ggplot(state_tobacco_sex_df, aes(y = YPLL, x = std)) +
+  geom_point(alpha = 0.25) + geom_smooth(se = F, method = "lm") + #weak positive relationship
+  theme_bw() +
+  labs(title = "YPLL Increases Slightly As Chlamydia Rate Increases", x = "Years of Potential Life Lost (YPLL)", y = "Chlamydia Rate")
+
+#plot against YPLL (County) cor = 0.24
+ggplot(county_tobacco_sex_df, aes(y = YPLL, x = std, color = county_class)) +
+  geom_point(alpha = 0.25) + geom_smooth(se = F, method = "lm") +
+  theme_bw() +
+  labs(title = "YPLL Increases Slightly As Chlamydia Rate Increases", x = "Years of Potential Life Lost (YPLL)", y = "Chlamydia Rate", 
+       color = "County Class")
 ```
-
-## Multivariate
-
-
-
 
 # Modeling
 
@@ -441,7 +508,7 @@ ggplot(tobacco_sex_df, aes(x = YPLL, y = std)) +
 #model assumptions (State)
 library(ggfortify)
 
-simple_model = lm(YPLL ~ smoke + std, data = tobacco_sex_df)
+simple_model = lm(YPLL ~ smoke + std, data = state_tobacco_sex_df)
 
 autoplot(simple_model, ncol = 2) + theme_bw() #one or two outliers but otherwise pretty good
 
@@ -454,12 +521,6 @@ summary(simple_model) #this is actually pretty good and then x's seem to be inde
 
 ```{r}
 #County
-county_tobacco_sex_df = reliable_data %>%
-  group_by(State, County) %>%
-  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
-  summarise(smoke = `% Smokers`, std = `Chlamydia Rate`, YPLL) %>%
-  na.omit()
-
 county_simple_model = lm(YPLL ~ smoke + std, data = county_tobacco_sex_df)
 
 autoplot(county_simple_model, ncol = 2) + theme_bw() #one or two outliers but otherwise pretty good
@@ -470,11 +531,6 @@ summary(county_simple_model) #this is actually pretty good and then x's seem to 
 
 
 # Conclusions
-
-
-
-
-
 
 
 
