@@ -1,0 +1,296 @@
+---
+title: "0711-Lecture"
+output: html_document
+date: '2022-07-11'
+---
+
+# Supervised Learning: Generalized linear models (GLMs)
+
+## Probability distributions
+
+A __distribution__ is a mathematical function $f(x \vert \theta)$ where
+
+- $x$ may take on continuous or discrete values over the _domain_ (i.e. all possible inputs) of $f(x \vert \theta)$
+
+- $\theta$ is a set of parameters governing the shape of the distribution
+  - e.g. $\theta = \{\mu,\sigma^2\}$ for a [Normal / Gaussian](https://en.wikipedia.org/wiki/Normal_distribution) distribution)
+
+- the $\vert$ symbol means that the shape of the distribution is *conditional* on the values of $\theta$
+
+- $f(x \vert \theta) \geq 0$ for all $x$
+
+- $\sum_x f(x \vert \theta) = 1$ or $\int_x f(x \vert \theta) = 1$.
+
+We use $f$ to denote the distribution for its:
+
+- __probability density function (PDF)__ if $x$ is continuous
+
+- __probability mass function (PMF)__ if $x$ is discrete
+
+## Probability distribution examples: [Normal distribution](https://en.wikipedia.org/wiki/Normal_distribution)
+
+Normal distribution PDF (`dnorm`):
+
+$$f(x \vert \mu, \sigma^2)=\frac{1}{\sigma \sqrt{2 \pi}} e^{-\frac{1}{2}\left(\frac{x-\mu}{\sigma}\right)^{2}}$$
+- we write $X \sim N(\mu, \sigma^2)$
+
+- __standard Normal__: $N(0, 1)$
+
+- can plot density curves with __stat_function()__ 
+
+```{r draw-Normal, }
+library(tidyverse)
+
+tibble(x = c(-5, 5)) %>%
+  ggplot(aes(x)) +
+  stat_function(fun = dnorm, n = 101, #<< 
+                args = list(mean = 0, sd = 1)) + #<<
+  stat_function(fun = dnorm, color = "red",
+                args = list(mean = -2, 
+                            sd = sqrt(0.5))) +
+  theme_bw()
+```
+
+## Probability distribution examples: [binomial distribution](https://en.wikipedia.org/wiki/Binomial_distribution)
+
+Binomial distribution PMF (`dbinom`):
+
+$$f(x \vert n, p)= \binom{n}{x} p^{x}(1-p)^{n-x}$$
+- model for the probability of $x$ successes in $n$ independent trials (`size`), each with success probability of $p$ (`prob`)
+
+- we write $X \sim \text{Binomial}(n, p)$
+
+- `R` uses `d` for both PDFs and PMFs
+
+```{r draw-binom, }
+tibble(x = 0:20) %>%
+  mutate(binom1 = dbinom(x, size = 20,
+                         prob = 0.5),
+         binom2 = dbinom(x, size = 20,
+                         prob = 0.1)) %>%
+  ggplot(aes(x)) + 
+  geom_point(aes(y = binom1)) +
+  geom_point(aes(y = binom2), color = "red") +
+  theme_bw()
+```
+
+## Distributions and regression
+
+Why does this matter?
+
+- Because linear regression, and generalized variants, __make assumptions__ about how observed data are distributed around the true regression line, conditional on a value of $x$
+
+For simple linear regression, our goal is to estimate $E[Y \vert x]$, assuming that for every value of $x$...
+
+- the distribution governing the possible values of $Y$ is a __Normal distribution__
+
+  - _Note:_ capitalize $Y$ because values are __random variables__ (random samples from distribution)
+
+- the __mean__ of the Normal distribution is $E[Y \vert x] = \mu(y \vert x) = \beta_0 + \beta_1 x$
+
+- the __variance__ of the Normal distribution is $\sigma^2$, which is a constant (i.e., does not vary with $x$)
+
+- $\Rightarrow Y|x \sim N(\beta_0 + \beta_1 x, \sigma^2)$, same as before: $Y = \beta_0 + \beta_1 x + \epsilon$, where $\epsilon \sim N(0, \sigma^2)$
+
+However, just because these assumptions are made in simple linear regression doesn't mean that all linear regression-related models utilize the same assumptions. __They don't__. When we step back from these assumptions, we enter the realm of __generalized linear models (GLMs)__.
+
+## Maximum likelihood estimation
+
+In generalized regression, we
+
+1. assume a (family of) distribution(s) that govern observed response values $Y$, and
+
+2. estimate the parameters $\theta$ of that distribution.
+
+Estimation is done by maximizing the __likelihood function__:
+
+$$\mathcal{L} = \prod_{i=1}^n f(Y_i \vert \theta)$$
+
+to find the __maximum likelihood estimators (MLEs)__ (typically maximize $\mathcal{l} = \log{\cal L}$, the __log-likelihood__)
+
+Leaving many details under the rug:
+
+- the maximum is the point at which the derivative of the likelihood function is zero
+
+- you don't need to check the second derivative: wherever the derivative equals zero, it's a maximum value, not a minimum value
+
+## MLE for regression
+
+__Determining the value of $\theta$ that achieves the maximum likelihood can be difficult__
+
+It may require __numerical optimization__ 
+  - wherein the computer, using an algorithm, searches over possible values of $\theta$ to find the optimal one
+
+For linear regression, ${\cal L}$ can be maximized analytically:
+
+$$\hat{\boldsymbol{\beta}} = (\boldsymbol{X} ^T \boldsymbol{X})^{-1}\boldsymbol{X}^T\boldsymbol{Y}$$
+
+- the $\hat{\boldsymbol{\beta}}$ estimates that minimize the __residual sum of squares (RSS)__ are the MLEs!
+
+- Unbiased estimate for $\hat{\sigma}^2$ is $= \frac{RSS}{n - (p + 1)}$
+
+- This enables us to perform statistical inference:
+
+  - Hypothesis testing for coefficients from before
+  
+  - Confidence intervals and prediction intervals
+
+## Gapminder data
+
+Health and income outcomes for 184 countries from 1960 to 2016 from the famous [Gapminder project](https://www.gapminder.org/data)
+
+```{r load-data, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(dslabs)
+
+gapminder <- as_tibble(gapminder)
+clean_gapminder <- gapminder %>%
+  filter(year == 2011, !is.na(gdp)) %>%
+  mutate(log_gdp = log(gdp))
+
+init_lm <- lm(life_expectancy ~ log_gdp, data = clean_gapminder) #<<
+```
+
+- `geom_smooth()` displays __confidence intervals__ for the regression line
+
+```{r conf-int, }
+lm_plot <- clean_gapminder %>%
+  ggplot(aes(x = log_gdp, #<<
+             y = life_expectancy)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") + #<<
+  theme_bw() +
+  labs(x = "log(GDP)",
+       y = "Life expectancy")
+
+lm_plot
+```
+
+## Confidence intervals versus prediction intervals
+
+Regression __confidence intervals__ are based on standard errors for the estimated regression line at $x^*$:
+
+$$MSE =\hat{\sigma}$$
+$$SE_{\text{line}}\left(x^{*}\right)=\hat{\sigma} \cdot \sqrt{\frac{1}{n}+\frac{\left(x^{*}-\bar{x}\right)^{2}}{\sum_{i=1}^{n}\left(x_{i}-\bar{x}\right)^{2}}}$$
+
+Regression __prediction intervals__ add the variance of a __single predicted value__ $\sigma^2$:
+
+$$SE_{\text{pred}}\left(x^{*}\right)=\hat{\sigma} \cdot \sqrt{1 + \frac{1}{n}+\frac{\left(x^{*}-\bar{x}\right)^{2}}{\sum_{i=1}^{n}\left(x_{i}-\bar{x}\right)^{2}}}$$
+
+- $SE_{\text{line}}\left(x^{*}\right) \Rightarrow$ std error for the predicted AVERAGE $\hat{\beta}_0 + \hat{\beta}_1 x^*$
+
+- $SE_{\text{pred}}\left(x^{*}\right) \Rightarrow$ std error for the prediction of an observation $\hat{\beta}_0 + \hat{\beta}_1 x^* + \epsilon$
+
+- Why does the standard error for a prediction never go to 0 as $n$ goes to $\infty$?
+
+## Confidence intervals versus prediction intervals
+
+Generate 95% intervals with $\hat{Y}^* +/- 2 \cdot SE_{type}(x^*)$
+
+```{r pred-interval, }
+pred_int_data <- 
+  predict(init_lm, data = clean_gapminder, 
+          interval = "prediction",  #<<
+          level = .95) %>% #<<
+  as_tibble()  
+
+lm_plot +
+  geom_ribbon(data = #<<
+                bind_cols(clean_gapminder,
+                          pred_int_data),
+              aes(ymin = lwr, ymax = upr), #<<
+              color = "red", fill = NA)
+```
+
+Subtle point: both are __confidence intervals__...
+
+## Generalization example
+
+In typical linear regression, the distribution is Normal and the domain of $Y \vert x$ is $(-\infty,\infty)$.
+
+What, however, happens if we know that
+
+1. the domain of observed values of the response is actually $[0,\infty]$? and
+
+2. the observed values are __discrete__, with possible values 0, 1, 2, ...
+
+__The Normal distribution doesn't hold here__
+
+- Any idea of what distribution could possibly govern $Y \vert x$?
+
+- Remember, we might not know truly how $Y \vert x$ is distributed, but any assumption we make has to fit with the limitations imposed by points 1 and 2 above
+
+## Generalization: Poisson regression
+
+A distribution that fulfills the conditions imposed on the last slide is the [__Poisson__ distribution](https://en.wikipedia.org/wiki/Poisson_distribution), 
+
+$$f(x \vert \lambda) = \frac{\lambda^xe^{-\lambda}}{x!},\text{ where }x = 0, 1, 2, \dots$$
+
+- has a single parameter $\lambda$, which is __both__ the mean __AND__ variance of the distribution
+
+  - in general the variance governs the distribution's shape
+
+- distribution of independent event occurrences in an interval, e.g. soccer goals in a match
+
+- $\lambda$ is the average number of the events in an interval
+
+So, when we apply generalized linear regression in this context, we would identify the family as Poisson.
+
+But there's another step in generalization...
+
+## Generalization: link function
+
+Start with one predictor, linear function: $\beta_0 + \beta_1 x$
+
+Range of this function is $(-\infty,\infty)$ - but for Poisson regression example, we know that $Y$ __cannot be negative__,
+
+- __We need to transform the linear function__ to be $[0,\infty)$! (We could punt and use simple linear regression, but results may not be meaningful, e.g., we predict ${\hat Y}$ to be negative!)
+
+__There is usually no unique transformation__, but rather conventional ones
+
+- e.g., for Poisson we use the $log()$ function as the __link function__ $g()$:
+
+$$g(\lambda \vert x) = \log(\lambda \vert x) = \beta_0 + \beta_1 x$$
+
+Given $Y$ with values limited to being either 0 or positive integers, with no upper bound, we
+
+1. assume $Y \vert x \sim \text{Poisson}(\lambda)$
+
+2. assume $\lambda \vert x = e^{\beta_0 + \beta_1 x}$ 
+
+3. use optimization to estimate $\beta_0$ and $\beta_1$ by maximizing the likelihood function
+
+## More distributions
+
+[Gamma distribution](https://en.wikipedia.org/wiki/Gamma_distribution)
+
++ $Y \vert x$ continuous, but bounded between 0 and $\infty$
+
+```{r out.width='50%', echo = FALSE, fig.align='center'}
+library(magick)
+image_read("https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Gamma_distribution_pdf.svg/650px-Gamma_distribution_pdf.svg.png") %>% print()
+```
+
+## More distributions
+
+[Beta distribution](https://en.wikipedia.org/wiki/Beta_distribution)
+
++ $Y \vert x$ continuous, but bounded between 0 and 1
+
+```{r out.width='50%', echo = FALSE, fig.align='center'}
+image_read("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Beta_distribution_pdf.svg/650px-Beta_distribution_pdf.svg.png") %>% print()
+```
+
+
+## More distributions
+
+[Bernoulli distribution](https://en.wikipedia.org/wiki/Bernoulli_distribution)
+
++ $Y \vert x$ discrete, but can only take on the values 0 and 1
+
+```{r out.width='50%', echo = FALSE, fig.align='center'}
+image_read("https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Bernoulli_Distribution.PNG/650px-Bernoulli_Distribution.PNG") %>% print()
+```
+
+__Focus for Wednesday!__
+
