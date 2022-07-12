@@ -425,7 +425,7 @@ county_df = reliable_data %>%
             #response
             YPLL)
 
-setdiff(county_df, no_na_pred_df) %>%
+setdiff(county_df, no_na_pred_df) %>% #find rows not in subsetted df comparing to parent df
   is.na() %>% 
   colSums()
 ```
@@ -503,6 +503,8 @@ ggplot(county_tobacco_sex_df, aes(y = YPLL, x = std, color = county_class)) +
 ```
 
 # Modeling
+
+Consider Mixed Effects Model
 
 ```{r}
 #model assumptions (State)
