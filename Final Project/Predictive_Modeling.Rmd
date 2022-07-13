@@ -505,28 +505,18 @@ ggplot(county_tobacco_sex_df, aes(y = YPLL, x = std, color = county_class)) +
 
 # Modeling
 
+## Model Design
 Can consider using PCR where PC's represent correlated predictors (e.g., drug/alcohol or diet/exercise predictors may be PC1 and PC2)
 
+### Linear Regression Model
+
 ```{r}
-#model assumptions (State)
 library(ggfortify)
 
-simple_model = lm(YPLL ~ std + smoke, data = state_tobacco_sex_df)
-
-autoplot(simple_model, ncol = 2) + theme_bw() #one or two outliers but otherwise pretty good
-
-#Output
-summary(simple_model) #this is actually pretty good and then x's seem to be independent of each other
-
-#Due to potential violations of normality, (1) can try removing outliers, (2) use nonparametric regression
-#Aggregated data: Underestimates variability, Inflated SE, Inflated R^2
-```
-
-```{r}
 #County
 county_simple_model = lm(YPLL ~ std + smoke, data = county_tobacco_sex_df)
-county_simple_model = lm(YPLL ~ std + smoke*county_class, data = county_tobacco_sex_df)
-county_simple_model = lm(YPLL ~ std + smoke + log(Population), data = county_tobacco_sex_df)
+#county_simple_model = lm(YPLL ~ std + smoke*county_class, data = county_tobacco_sex_df)
+#county_simple_model = lm(YPLL ~ std + smoke + log(Population), data = county_tobacco_sex_df)
 
 autoplot(county_simple_model, ncol = 2) + theme_bw() #one or two outliers but otherwise pretty good
 
@@ -534,7 +524,7 @@ autoplot(county_simple_model, ncol = 2) + theme_bw() #one or two outliers but ot
 summary(county_simple_model) #this is actually pretty good and then x's seem to be independent of each other
 ```
 
-Consider Mixed Effects Model
+### Mixed Effects Model
 
 ```{r}
 library(lme4) #mixed model library
@@ -551,7 +541,21 @@ mixed_mod = lmer(YPLL ~ smoke + std + (1 | county_class), data = county_tobacco_
 summary(mixed_mod) #why fixed effects are dif than in linear mod
 ```
 
-Consider non parametric model
+### Non parametric model
+
+```{r}
+
+```
+
+
+## Model Validation
+
+Perform k-Fold CV on counties within States to limit the chance of having a fold over or under representing a particular state
+e.g., randomly assign 1:5 across all counties within each state
+
+```{r}
+#check cv lecture to make cv func
+```
 
 # Conclusions
 
