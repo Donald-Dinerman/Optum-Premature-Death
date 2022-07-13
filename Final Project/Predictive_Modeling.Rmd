@@ -506,6 +506,11 @@ ggplot(county_tobacco_sex_df, aes(y = YPLL, x = std, color = county_class)) +
 
 Consider Mixed Effects Model
 
+#####HELP
+What is difference between mixed model and the regressions with interactions (random effect is grouping, fixed effect is x)
+
+Can consider using PCR where PC's represent correlated predictors (e.g., drug/alcohol or diet/exercise predictors may be PC1 and PC2)
+
 ```{r}
 #model assumptions (State)
 library(ggfortify)
