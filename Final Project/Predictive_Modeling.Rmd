@@ -513,15 +513,15 @@ Can consider using PCR where PC's represent correlated predictors (e.g., drug/al
 ```{r}
 library(ggfortify)
 
-#County
-county_simple_model = lm(YPLL ~ std + smoke, data = county_tobacco_sex_df)
-#county_simple_model = lm(YPLL ~ std + smoke*county_class, data = county_tobacco_sex_df)
-#county_simple_model = lm(YPLL ~ std + smoke + log(Population), data = county_tobacco_sex_df)
+#Aggregated data: Underestimates variability, Inflated SE, Inflated R^2
+lm_mod = lm(YPLL ~ std + smoke, data = county_tobacco_sex_df)
+#lm_mod = lm(YPLL ~ std + smoke*county_class, data = county_tobacco_sex_df)
+#lm_mod = lm(YPLL ~ std + smoke + log(Population), data = county_tobacco_sex_df)
 
-autoplot(county_simple_model, ncol = 2) + theme_bw() #one or two outliers but otherwise pretty good
+autoplot(lm_mod, ncol = 2) + theme_bw() #one or two outliers but otherwise pretty good
 
 #Output
-summary(county_simple_model) #this is actually pretty good and then x's seem to be independent of each other
+summary(lm_mod) #this is actually pretty good and then x's seem to be independent of each other
 ```
 
 ### Mixed Effects Model
