@@ -442,7 +442,7 @@ state_tobacco_sex_df = reliable_data %>%
 county_tobacco_sex_df = reliable_data %>%
   group_by(State, County) %>%
   rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
-  summarise(county_class, smoke = `% Smokers`, std = `Chlamydia Rate`, YPLL) %>%
+  summarise(county_class, smoke = `% Smokers`, std = `Chlamydia Rate`, YPLL, Population) %>%
   na.omit()
 
 #map
@@ -462,6 +462,7 @@ ggplot(state_tobacco_sex_df, aes(x = YPLL, y = smoke)) +
 ggplot(county_tobacco_sex_df, aes(x = YPLL, y = smoke, color = county_class)) +
   geom_point(alpha = 0.25) + #geom_smooth(se = F, method = "lm") +
   theme_bw() +
+  geom_smooth(method = "lm", se = F) +
   labs(title = "YPLL Increases As Smoking Prevelance Increases", x = "Years of Potential Life Lost (YPLL)", y = "% Smokers",
        color = "County Class")
 ```
@@ -504,18 +505,13 @@ ggplot(county_tobacco_sex_df, aes(y = YPLL, x = std, color = county_class)) +
 
 # Modeling
 
-Consider Mixed Effects Model
-
-#####HELP
-What is difference between mixed model and the regressions with interactions (random effect is grouping, fixed effect is x)
-
 Can consider using PCR where PC's represent correlated predictors (e.g., drug/alcohol or diet/exercise predictors may be PC1 and PC2)
 
 ```{r}
 #model assumptions (State)
 library(ggfortify)
 
-simple_model = lm(YPLL ~ smoke + std, data = state_tobacco_sex_df)
+simple_model = lm(YPLL ~ std + smoke, data = state_tobacco_sex_df)
 
 autoplot(simple_model, ncol = 2) + theme_bw() #one or two outliers but otherwise pretty good
 
@@ -528,7 +524,9 @@ summary(simple_model) #this is actually pretty good and then x's seem to be inde
 
 ```{r}
 #County
-county_simple_model = lm(YPLL ~ smoke + std, data = county_tobacco_sex_df)
+county_simple_model = lm(YPLL ~ std + smoke, data = county_tobacco_sex_df)
+county_simple_model = lm(YPLL ~ std + smoke*county_class, data = county_tobacco_sex_df)
+county_simple_model = lm(YPLL ~ std + smoke + log(Population), data = county_tobacco_sex_df)
 
 autoplot(county_simple_model, ncol = 2) + theme_bw() #one or two outliers but otherwise pretty good
 
@@ -536,6 +534,24 @@ autoplot(county_simple_model, ncol = 2) + theme_bw() #one or two outliers but ot
 summary(county_simple_model) #this is actually pretty good and then x's seem to be independent of each other
 ```
 
+Consider Mixed Effects Model
+
+```{r}
+library(lme4) #mixed model library
+
+#(1 | county_class) allows the intercept to vary by county_class, Random intercept model
+mixed_mod = lmer(YPLL ~ smoke + std + (1 | county_class), data = county_tobacco_sex_df)
+
+#Random slope model (#random slope look for group structure in y vs x)
+#mixed_mod = lmer(YPLL ~ smoke + std + (smoke | county_class), data = county_tobacco_sex_df)
+
+#Random slope and random intercept model
+#mixed_mod = lmer(YPLL ~ smoke + std + (1 + smoke | county_class), data = county_tobacco_sex_df)
+
+summary(mixed_mod) #why fixed effects are dif than in linear mod
+```
+
+Consider non parametric model
 
 # Conclusions
 
