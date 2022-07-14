@@ -148,10 +148,6 @@ reliable_data = reliable_data %>%
            case_when(Population < (sub_upper_lim) & Population >= (sub_lower_lim) ~ "Suburban",
                      Population >= (sub_upper_lim) ~ "Urban", 
                      TRUE ~ "Rural")) #%>% select(State, County, county_class, Population)
-
-reliable_data %>%
-  group_by(State, county_class) %>%
-  summarise(smoke = round(mean(`% Smokers`), 2))
 ```
 
 ```{r,include=F}
@@ -327,34 +323,6 @@ test_func(var_name = "Deaths")
 ```
 
 ```{r}
-#State Level
-pred_df = reliable_data %>%
-  group_by(State) %>%
-  slice(1) %>%
-  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
-  summarise(#alcohol/drug
-            drink_per = `% Excessive Drinking`, dui_per = `% Driving Deaths with Alcohol Involvement`, 
-            od_num = `# Drug Overdose Deaths`, vehicle_death = `# Motor Vehicle Deaths`, obesity_rate = `% Adults with Obesity`, 
-            #food/exercise
-            food_index = `Food Environment Index`, inactive_per = `% Physically Inactive`, 
-            exercise_access_per = `% With Access to Exercise Opportunities`, food_per = `% Food Insecure`, 
-            healthy_access_per = `% Limited Access to Healthy Foods`,
-            #tobacco
-            smoke = `% Smokers`, 
-            #sex
-            std = `Chlamydia Rate`, 
-            #response
-            YPLL)
-
-#Linear Correlation Matrix (Response vs Predictors)
-cor(pred_df[,-1], pred_df[,length(pred_df)]) %>% 
-  round(., 3) %>% 
-  as.data.frame() %>% 
-  mutate(YPLL_abs = abs(YPLL)) %>%
-  arrange(desc(YPLL_abs))
-```
-
-```{r}
 #County Level
 df = reliable_data %>%
   group_by(State, County) %>%
@@ -385,7 +353,6 @@ cor(num_df, df[,length(df)]) %>%
   mutate(YPLL_abs = abs(YPLL)) %>%
   arrange(desc(YPLL_abs))
 ```
-
 
 ```{r, include = F}
 #Dataframe with all the predictors
