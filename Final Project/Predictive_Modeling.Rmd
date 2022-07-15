@@ -347,7 +347,7 @@ df = reliable_data %>%
 num_df = df[ , !sapply(df, is.character)]
 
 #Linear Correlation Matrix (Response vs Predictors)
-cor(num_df, df[,length(df)]) %>% 
+lin_cor = cor(num_df, df[,length(df)]) %>% 
   round(., 3) %>% 
   as.data.frame() %>% 
   mutate(YPLL_abs = abs(YPLL)) %>%
@@ -420,10 +420,10 @@ plot_usmap(data = state_tobacco_sex_df, values = "smoke", color = "black") +
   labs(title = "")
 
 #plot against YPLL (State) cor = 0.82
-ggplot(state_tobacco_sex_df, aes(x = YPLL, y = smoke)) +
+ggplot(state_tobacco_sex_df, aes(y = YPLL, x = smoke)) +
   geom_point(alpha = 0.25) + #geom_smooth(se = F, method = "lm") +
   theme_bw() +
-  labs(title = "YPLL Increases As Smoking Prevelance Increases", x = "Years of Potential Life Lost (YPLL)", y = "% Smokers")
+  labs(title = "YPLL Increases As Smoking Prevelance Increases", y = "Years of Potential Life Lost (YPLL)", x = "% Smokers")
 
 #plot against YPLL (County) cor = 0.74
 ggplot(county_tobacco_sex_df, aes(x = YPLL, y = smoke, color = county_class)) +
@@ -470,7 +470,92 @@ ggplot(county_tobacco_sex_df, aes(y = YPLL, x = std, color = county_class)) +
        color = "County Class")
 ```
 
+#### Diet/Exercise
+
+```{r}
+county_pred_df = reliable_data %>%
+  group_by(State, County) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
+  summarise(
+            #Alcohol/Drug
+            drink_per = `% Excessive Drinking`, dui_per = `% Driving Deaths with Alcohol Involvement`, 
+            #od_num = `# Drug Overdose Deaths`, vehicle_death = `# Motor Vehicle Deaths`, #remove
+            #food/exercise
+            food_index = `Food Environment Index`, inactive_per = `% Physically Inactive`, 
+            exercise_access_per = `% With Access to Exercise Opportunities`, food_per = `% Food Insecure`, 
+            healthy_access_per = `% Limited Access to Healthy Foods`, obesity_rate = `% Adults with Obesity`,
+            #tobacco
+            smoke = `% Smokers`,
+            #sex
+            std = `Chlamydia Rate`,
+            #response
+            YPLL,
+            #Cluster
+            county_class = as.factor(county_class)) %>%
+  na.omit() 
+
+library(GGally)
+
+county_num_df = county_pred_df[ ,!sapply(county_pred_df, is.character)]
+
+end = length(county_num_df)
+half = (end/2) %>% ceiling()
+
+ggpairs(county_num_df[,c(1:half, end-1)])
+
+ggpairs(county_num_df[,half:end-1])
+
+cor(county_num_df[,-end]) %>% round(2)
+
+lin_cor
+```
+
 # Modeling
+
+## Variable Selection
+
+Lasso, Ridge, Elastic Net (Deal with correlation especially across diet/exercise related variables)
+
+```{r}
+library(glmnet)
+
+#convert data to x and y matrices
+x_matrix = county_num_df %>% #how is county_class being treated in regularization techniques
+  select(-YPLL) %>% 
+  as.matrix()
+
+y_matrix = county_pred_df$YPLL
+```
+
+
+```{r}
+library(broom)
+
+init_reg_fit <- lm(YPLL ~ ., county_num_df)
+
+tidy(init_reg_fit) %>%
+  mutate(coef_sign = as.factor(sign(estimate)),
+         term = fct_reorder(term, estimate)) %>%
+  ggplot(aes(x = term, y = estimate, fill = coef_sign)) +
+  geom_bar(stat = "identity", color = "white") +
+  scale_fill_manual(values = c("darkred", "darkblue"), 
+                    guide = FALSE) +
+  coord_flip() + 
+  theme_bw()
+
+# county_num_df %>% 
+#   group_by(county_class) %>%
+#   summarise(mean(YPLL))
+```
+
+```{r}
+
+```
+
+
+```{r}
+#group lasso (correlation within group structure of features e.g., diet/exercise)
+```
 
 ## Model Design
 Can consider using PCR where PC's represent correlated predictors (e.g., drug/alcohol or diet/exercise predictors may be PC1 and PC2)
@@ -522,12 +607,22 @@ e.g., randomly assign 1:5 across all counties within each state
 
 ```{r}
 #check cv lecture to make cv func
+#stratified k fold
+set.seed(1)
+
+state_list = unique(county_tobacco_sex_df$state)
+strat_df = data.frame()
+
+for (i in 1:length(state_list)){
+  df = filter(county_tobacco_sex_df, state == state_list[i])
+  new_df = mutate(df, fold = sample(1:5, replace = T, size = nrow(df)))
+  strat_df = rbind(strat_df, new_df)
+}
+
+strat_df
 ```
 
 # Conclusions
-
-
-
 
 
 
