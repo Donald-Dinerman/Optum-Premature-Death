@@ -734,7 +734,7 @@ summary(model_gbm)
 Perform k-Fold CV on counties within States to limit the chance of having a fold over or under representing a particular state
 e.g., randomly assign 1:5 across all counties within each state
 
-#### HELP: Add mixed effects model (why is it the same as lm), explore/discuss CV results, discuss alternative linear modeling approaches, should I explore alternative tree based approaches
+#### HELP: Add mixed effects model (why is it the same as lm), explore/discuss CV results, discuss alternative linear modeling approaches, should I explore alternative tree based approaches (can look into xgboost[regularization approach built in])
 ```{r}
 #stratified k fold
 set.seed(1)
