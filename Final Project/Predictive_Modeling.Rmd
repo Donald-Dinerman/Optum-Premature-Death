@@ -496,18 +496,17 @@ county_pred_df = reliable_data %>%
 
 library(GGally)
 
-county_num_df = county_pred_df[ ,!sapply(county_pred_df, is.character)]
+county_num_df = county_pred_df[ ,!sapply(county_pred_df, is.character)] %>%
+  relocate(YPLL, .before = drink_per)
 
 end = length(county_num_df)
 half = (end/2) %>% ceiling()
 
-ggpairs(county_num_df[,c(1:half, end-1)])
+ggpairs(county_num_df[,c(1:half)])
 
-ggpairs(county_num_df[,half:end-1])
+ggpairs(county_num_df[,c(1,half:end)])
 
 cor(county_num_df[,-end]) %>% round(2)
-
-lin_cor
 ```
 
 # Modeling
@@ -520,18 +519,24 @@ Lasso, Ridge, Elastic Net (Deal with correlation especially across diet/exercise
 library(glmnet)
 
 #convert data to x and y matrices
-x_matrix = county_num_df %>% #how is county_class being treated in regularization techniques
-  select(-YPLL) %>% 
+dummy_df = county_num_df %>%
+  mutate(urban = ifelse(county_class == 'Urban', 1, 0),
+         suburban = ifelse(county_class == 'Suburban', 1, 0),
+         rural = ifelse(county_class == 'Rural', 1, 0)) %>%
+  select(-county_class)
+
+x_matrix = dummy_df %>% #how is county_class being treated in regularization techniques
+  select(-c(YPLL)) %>% 
   as.matrix()
 
 y_matrix = county_pred_df$YPLL
 ```
 
-
-```{r}
+```{r, include=F}
+#Initial lm
 library(broom)
 
-init_reg_fit <- lm(YPLL ~ ., county_num_df)
+init_reg_fit <- lm(YPLL ~ ., dummy_df)
 
 tidy(init_reg_fit) %>%
   mutate(coef_sign = as.factor(sign(estimate)),
@@ -542,23 +547,120 @@ tidy(init_reg_fit) %>%
                     guide = FALSE) +
   coord_flip() + 
   theme_bw()
+```
 
-# county_num_df %>% 
-#   group_by(county_class) %>%
-#   summarise(mean(YPLL))
+```{r, include=F}
+#Ridge
+#Shrinkage Plot
+init_ridge_fit <- glmnet(x_matrix, y_matrix, alpha = 0)#<<
+plot(init_ridge_fit, xvar = "lambda")
+
+#Lamda Tuning Plot
+fit_ridge_cv <- cv.glmnet(x_matrix, y_matrix, alpha = 0) #<<
+plot(fit_ridge_cv)
+
+#Coefficient
+tidy_ridge_coef <- tidy(fit_ridge_cv$glmnet.fit)
+
+tidy_ridge_coef %>%
+  filter(lambda == fit_ridge_cv$lambda.1se) %>%
+  mutate(coef_sign = as.factor(sign(estimate)),
+         term = fct_reorder(term, estimate)) %>%
+  ggplot(aes(x = term, y = estimate, fill = coef_sign)) +
+  geom_bar(stat = "identity", color = "white") +
+  scale_fill_manual(values = c("darkred", "darkblue"), guide = "none") +
+  coord_flip() + 
+  theme_bw()
+```
+
+```{r, include=F}
+#Lasso
+fit_lasso_cv <- cv.glmnet(x_matrix, y_matrix, 
+                          alpha = 1) #<<
+plot(fit_lasso_cv)
+
+tidy_lasso_coef <- tidy(fit_lasso_cv$glmnet.fit)
+
+tidy_lasso_coef %>%
+  ggplot(aes(x = lambda, y = estimate, 
+             group = term)) +
+  scale_x_log10() +
+  geom_line(alpha = 0.75) +
+  geom_vline(xintercept = 
+               fit_lasso_cv$lambda.min) +
+  geom_vline(xintercept = 
+               fit_lasso_cv$lambda.1se, 
+             linetype = "dashed", color = "red") +
+  theme_bw()
+
+tidy_lasso_cv <- tidy(fit_lasso_cv)
+
+tidy_lasso_cv %>%
+  ggplot(aes(x = lambda, y = nzero)) +
+  geom_line() +
+  geom_vline(xintercept = fit_lasso_cv$lambda.min) +
+  geom_vline(xintercept = fit_lasso_cv$lambda.1se, 
+             linetype = "dashed", color = "red") +
+  scale_x_log10() + theme_bw()
+
+tidy_lasso_coef %>%
+  filter(lambda == fit_lasso_cv$lambda.1se) %>%
+  mutate(coef_sign = as.factor(sign(estimate)),
+         term = fct_reorder(term, estimate)) %>%
+  ggplot(aes(x = term, y = estimate, 
+             fill = coef_sign)) +
+  geom_bar(stat = "identity", color = "white") +
+  scale_fill_manual(values = c("darkred", "darkblue"), 
+                    guide = 'none') +
+  coord_flip() +
+  theme_bw()
 ```
 
 ```{r}
+#Compare Model Performances based on test RMSE
+set.seed(1)
+cv_df <- dummy_df %>% mutate(test_fold = sample(rep(1:5, length.out = n())))
 
-```
+holdout_predictions <- 
+  map_dfr(unique(cv_df$test_fold), 
+          
+          function(holdout) {
+            # Separate test and training data:
+            test_data <- cv_df %>% filter(test_fold == holdout)
+            train_data <- cv_df %>% filter(test_fold != holdout)
+            
+            # Repeat for matrices
+            test_x <- as.matrix(dplyr::select(test_data, -YPLL))
+            train_x <- as.matrix(dplyr::select(train_data, -YPLL))
 
+            # Train models:
+            lm_model <- lm(YPLL ~ ., data = train_data)
+            ridge_model <- cv.glmnet(train_x, train_data$YPLL, alpha = 0)
+            lasso_model <- cv.glmnet(train_x, train_data$YPLL, alpha = 1)
+            en_model <- cv.glmnet(train_x, train_data$YPLL, alpha = .5)
 
-```{r}
-#group lasso (correlation within group structure of features e.g., diet/exercise)
+            # Return tibble of holdout results:
+            tibble(lm_preds = predict(lm_model, newdata = test_data), #linear model
+                   ridge_preds = as.numeric(predict(ridge_model, newx = test_x)), #ridge
+                   lasso_preds = as.numeric(predict(lasso_model, newx = test_x)), #lasso
+                   en_preds = as.numeric(predict(en_model, newx = test_x)), #elastic net
+                   test_actual = test_data$YPLL, test_fold = holdout) 
+          })
+
+holdout_predictions %>%
+  pivot_longer(lm_preds:en_preds, 
+               names_to = "type", values_to = "test_preds") %>%
+  group_by(type, test_fold) %>%
+  summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>% 
+  ggplot(aes(x = type, y = rmse)) + 
+  geom_point() + theme_bw() +
+  stat_summary(fun = mean, geom = "point", 
+               color = "red") + 
+  stat_summary(fun.data = mean_se, geom = "errorbar",
+               color = "red")
 ```
 
 ## Model Design
-Can consider using PCR where PC's represent correlated predictors (e.g., drug/alcohol or diet/exercise predictors may be PC1 and PC2)
 
 ### Linear Regression Model
 
@@ -566,14 +668,10 @@ Can consider using PCR where PC's represent correlated predictors (e.g., drug/al
 library(ggfortify)
 
 #Aggregated data: Underestimates variability, Inflated SE, Inflated R^2
-lm_mod = lm(YPLL ~ std + smoke, data = county_tobacco_sex_df)
-#lm_mod = lm(YPLL ~ std + smoke*county_class, data = county_tobacco_sex_df)
-#lm_mod = lm(YPLL ~ std + smoke + log(Population), data = county_tobacco_sex_df)
+lm_mod = lm(YPLL ~ std + smoke + food_per, data = county_num_df)
+#autoplot(lm_mod, ncol = 2) + theme_bw() #mod assumptions
 
-autoplot(lm_mod, ncol = 2) + theme_bw() #one or two outliers but otherwise pretty good
-
-#Output
-summary(lm_mod) #this is actually pretty good and then x's seem to be independent of each other
+summary(lm_mod) #Output
 ```
 
 ### Mixed Effects Model
@@ -582,7 +680,7 @@ summary(lm_mod) #this is actually pretty good and then x's seem to be independen
 library(lme4) #mixed model library
 
 #(1 | county_class) allows the intercept to vary by county_class, Random intercept model
-mixed_mod = lmer(YPLL ~ smoke + std + (1 | county_class), data = county_tobacco_sex_df)
+mixed_mod = lmer(YPLL ~ std + smoke + food_per + (1 | county_class), data = county_num_df)
 
 #Random slope model (#random slope look for group structure in y vs x)
 #mixed_mod = lmer(YPLL ~ smoke + std + (smoke | county_class), data = county_tobacco_sex_df)
@@ -593,34 +691,119 @@ mixed_mod = lmer(YPLL ~ smoke + std + (1 | county_class), data = county_tobacco_
 summary(mixed_mod) #why fixed effects are dif than in linear mod
 ```
 
-### Non parametric model
+### Tree Based Model
 
 ```{r}
+library(caret)
+library(gbm)
 
+#Train/Test Data
+set.seed(1)
+parts = createDataPartition(county_num_df$YPLL, p = .7, list = F) #70/30 split
+train = county_num_df[parts, ]
+test = county_num_df[-parts, ]
+
+test_x = select(test, -YPLL) # feature and target array
+test_y = select(test, YPLL)
+
+#Train GBM Model
+model_gbm = gbm(train$YPLL ~.,
+                data = train,
+                distribution = "gaussian",
+                cv.folds = 10,
+                shrinkage = .1,
+                n.minobsinnode = 10,
+                n.trees = 250,
+                verbose = F)
+ 
+print(model_gbm)
+
+summary(model_gbm)
+# 
+# #Test Set Predictions
+# pred_y = predict.gbm(model_gbm, test_x)
+# 
+# #Calculate LOSS
+# residuals = test_y - pred_y
+# RMSE = residuals^2 %>% unlist() %>% as.numeric() %>% mean() %>% sqrt()
+# RMSE
 ```
-
 
 ## Model Validation
 
 Perform k-Fold CV on counties within States to limit the chance of having a fold over or under representing a particular state
 e.g., randomly assign 1:5 across all counties within each state
 
+#### HELP: Add mixed effects model (why is it the same as lm), explore/discuss CV results, discuss alternative linear modeling approaches
 ```{r}
-#check cv lecture to make cv func
 #stratified k fold
 set.seed(1)
 
-state_list = unique(county_tobacco_sex_df$state)
+state_list = unique(county_pred_df$state)
 strat_df = data.frame()
 
 for (i in 1:length(state_list)){
-  df = filter(county_tobacco_sex_df, state == state_list[i])
-  new_df = mutate(df, fold = sample(1:5, replace = T, size = nrow(df)))
+  df = filter(county_pred_df, state == state_list[i])
+  new_df = mutate(df, test_fold = sample(1:5, replace = T, size = nrow(df)))
   strat_df = rbind(strat_df, new_df)
 }
 
-strat_df
+#note: reg techniques don't accept char x, county_class doesn't help predictions anyways
+strat_cv_df = strat_df %>% ungroup() %>% select(-c(state, County)) 
+
+#Calculate holdout predictions
+holdout_predictions <- 
+  map_dfr(unique(strat_cv_df$test_fold), 
+          
+          function(holdout) {
+            # Separate test and training data:
+            test_data <- strat_cv_df %>% filter(test_fold == holdout)
+            train_data <- strat_cv_df %>% filter(test_fold != holdout)
+            
+            # Repeat for matrices
+            test_x <- as.matrix(dplyr::select(test_data, -YPLL))
+            train_x <- as.matrix(dplyr::select(train_data, -YPLL))
+
+            # Train models:
+            lm_model <- lm(YPLL ~ ., data = train_data)
+            mixed_model <- lmer(YPLL ~ . + (1 | county_class), data = train_data)
+            # ridge_model <- cv.glmnet(train_x, train_data$YPLL, alpha = 0)
+            # lasso_model <- cv.glmnet(train_x, train_data$YPLL, alpha = 1)
+            # en_model <- cv.glmnet(train_x, train_data$YPLL, alpha = .5)
+            gbm_model <- gbm(train_data$YPLL ~.,
+                data = train_data,
+                distribution = "gaussian",
+                cv.folds = 1, #cv within cv?, is the gbm selecting trees using cv within the train data
+                shrinkage = .1,
+                n.minobsinnode = 10,
+                n.trees = 250,
+                verbose = F)
+
+            # Return tibble of holdout results:
+            tibble(lm_preds = predict(lm_model, newdata = test_data), #linear model
+                   mixed_preds = predict(mixed_model, newdata = test_data, re.form = ~(1 | county_class)), #mixed model
+                   # ridge_preds = as.numeric(predict(ridge_model, newx = test_x)), #ridge
+                   # lasso_preds = as.numeric(predict(lasso_model, newx = test_x)), #lasso
+                   # en_preds = as.numeric(predict(en_model, newx = test_x)), #elastic net
+                   gbm_preds = predict.gbm(gbm_model, newdata = test_data), #gbm model
+                   test_actual = test_data$YPLL, test_fold = holdout)
+          })
+
+holdout_predictions %>%
+  pivot_longer(lm_preds:gbm_preds, 
+               names_to = "type", values_to = "test_preds") %>%
+  group_by(type, test_fold) %>%
+  summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>% 
+  ggplot(aes(x = type, y = rmse)) + 
+  geom_point() + theme_bw() +
+  stat_summary(fun = mean, geom = "point", 
+               color = "red") + 
+  stat_summary(fun.data = mean_se, geom = "errorbar",
+               color = "red") +
+  labs(y = "RMSE", x = "Model Type")
 ```
+
+The best performing models are GBM and linear regression. May go with linear regression which makes sense because the modeled y ~ x relationships are linear but I want a little fancier type of linear regression.
 
 # Conclusions
 
