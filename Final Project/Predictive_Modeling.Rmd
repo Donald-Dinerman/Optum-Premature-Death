@@ -835,6 +835,7 @@ library(shinyBS)
 
 county_options = c("Urban", "Suburban", "Rural") %>% sort()
 demo_options = c("All", "Asian", "Black", "Hispanic", "Native American", "White") %>% sort()
+#df_names = colnames(strat_cv_df) #need to match data input and colnames
 ```
 
 ```{r}
@@ -909,9 +910,37 @@ ui = navbarPage(title = div(img(
 ```{r}
 server = function(input,output){
   
+  #store inputs
+  x_value <- reactive({
+    c(input$county_class, input$inactive_per, input$obesity_rate, input$food_per, input$drink_per, input$smoke, input$std)
+  })
   
+  #convert inputs to dataframe
+  shiny_df <- reactive({
+    new_table = data.frame((matrix(nrow = 1, data = x_value())))
+    colnames(new_table) = df_names #get appropriate colnames
+    new_table
+  })
   
+  #Get predictions
+  shiny_pred <- reactive({
+    predict(final_gam_model, newdata = shiny_df()) #test prediction syntax for gam
+  })
   
+  #Text output
+  pred_reactive <- eventReactive(input$go, #put the expected YPLL text together
+    {
+      paste("The expected county YPLL is:", shiny_pred(), "Years")
+      })
+  
+  output$text1 <- renderUI({pred_reactive()})
+  
+  #Plot output
+  output$plot1 <- renderPlot({
+    
+    demo_map(Race_Type = input$demo)
+  }, 
+  height = 400, width = 900)
   
 }
 ```
