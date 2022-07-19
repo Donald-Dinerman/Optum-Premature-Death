@@ -211,14 +211,10 @@ image_read("https://bradleyboehmke.github.io/HOML/10-gradient-boosting_files/fig
 Can take random samples of the data when updating - makes algorithm faster and adds randomness to get closer to global minimum (no guarantees!)
 
 ```{r out.width='100%', echo = FALSE, fig.align='center'}
-knitr::include_graphics("https://bradleyboehmke.github.io/HOML/10-gradient-boosting_files/figure-html/stochastic-gradient-descent-fig-1.png")
+image_read("https://bradleyboehmke.github.io/HOML/10-gradient-boosting_files/figure-html/stochastic-gradient-descent-fig-1.png") %>% print()
 ```
 
 ## eXtreme gradient boosting with [XGBoost](https://xgboost.readthedocs.io/en/latest/R-package/xgboostPresentation.html)
-
-```{r out.width='80%', echo = FALSE, fig.align='center'}
-image_read("https://media1.tenor.com/images/6e86cad4899cd02047c33ecfc0e4052b/tenor.gif?itemid=11446810") %>% print()
-```
 
 ## Tuning GBMs with [`xgboost`](https://xgboost.readthedocs.io/en/latest/R-package/xgboostPresentation.html)
 
@@ -258,7 +254,7 @@ xgb_tune <- train(x = as.matrix(dplyr::select(model_mlb_data, -war)),
                   y = model_mlb_data$war, trControl = xgboost_tune_control,
                   tuneGrid = xgboost_tune_grid, 
                   objective = "reg:squarederror", method = "xgbTree",
-                  verbose = TRUE)
+                  verbose = F)
 
 xgb_tune$bestTune
 ```
