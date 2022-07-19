@@ -295,7 +295,7 @@ demo_response_clean_df = demo_response_df %>%
 ###HEREEEEEEEEE
 ```{r}
 #Modify: cleaned race_type inputs based on shiny list, extra: regional input flexibility
-demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c()) {
+demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c(), region = c()) {
   
   #Filter readable input to variable name in df
   filter_input = case_when(
@@ -307,7 +307,7 @@ demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c()) {
     Race_Type == "White" ~ "YPLL Rate (white)"
   )
   
-  plot_usmap(data = filter(df, Race == filter_input), values = "YPLL", color = "black") + 
+  plot_usmap(data = filter(df, Race == filter_input), values = "YPLL", color = "black", include = region) + 
   scale_fill_continuous(low = "white", high = "red", name = "YPLL (2020)", label = scales::comma, limits = limit_set) + 
   theme(legend.position = "right") +
   labs(title = "") #Race_Type
@@ -315,7 +315,7 @@ demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c()) {
 }
 
 #Difficult to set standard limits because range varies significantly across demographic groups
-demo_map(Race_Type = "Asian")
+demo_map(Race_Type = "Asian", region = 'Alaska')
 demo_map(Race_Type = "Native American")
 demo_map(Race_Type = "Black")
 demo_map(Race_Type = "Hispanic")
@@ -504,7 +504,9 @@ county_pred_df = reliable_data %>%
             #response
             YPLL,
             #Cluster
-            county_class = as.factor(county_class)) %>%
+            county_class = as.factor(county_class),
+            #Population
+            Population) %>%
   na.omit() 
 
 library(GGally)
@@ -770,7 +772,7 @@ e.g., randomly assign 1:5 across all counties within each state
 
 ```{r}
 #stratified k fold
-strat_cv = function(k = 5, seed = 100){
+strat_cv = function(k = 5, seed = 123){
   
   set.seed(seed)
   state_list = unique(county_pred_df$state)
@@ -798,10 +800,15 @@ holdout_predictions <-
           
             # Train models:
             lm_model <- lm(YPLL ~ ., data = train_data)
+            simple_lm_model <- lm(YPLL ~ std + smoke + food_per + drink_per + county_class, data = train_data)
             gam_model <- gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_per) + s(exercise_access_per) + s(food_per) +
                             s(healthy_access_per) + s(obesity_rate) + s(smoke) + s(std) + as.factor(county_class), 
                             data = train_data, 
                             method = "REML")
+            pop_gam_model <-  gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
+                                     s(Population),
+                                     data = train_data, 
+                                     method = "REML")
             simple_gam_model <-  gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
                                      as.factor(county_class),
                                      data = train_data, 
@@ -809,7 +816,9 @@ holdout_predictions <-
 
             # Return tibble of holdout results:
             tibble(lm_preds = predict(lm_model, newdata = test_data), #linear model
+                   simple_lm_preds = predict(simple_lm_model, newdata = test_data),
                    gam_preds = predict(gam_model, newdata = test_data), #gam model
+                   pop_gam_preds = predict(pop_gam_model, newdata = test_data),
                    simple_gam_preds = predict(simple_gam_model, newdata = test_data),
                    test_actual = test_data$YPLL, test_fold = holdout)
           })
@@ -828,7 +837,9 @@ holdout_predictions %>%
   labs(y = "RMSE", x = "Model Type")
 ```
 
-Simple gam (7 features) performs approximately the same as gam with all 11 features. For simplicity in potential Shiny App interface simple gam seems to be the way to go.
+Simple gam (7 features) performs outperforms gam with all 11 features within intervals. For simplicity and performance in potential Shiny App interface simple gam seems to be the way to go.
+
+Interesting is that population instead of county_class outperforms very slightly, which is to be expected especially in GAM bc we lose some variability in information when transforming population to 3 county classes
 
 ```{r}
 library(hablar)
@@ -855,7 +866,7 @@ final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + 
 # Conclusions
 
 # To Do: (1) Get year labels on all features, (2) Shiny App (Modify functional EDA), (3) Formalize EDA, Methods and Conclusions 
-#QUESTION: When doing CV/model validation, do we just use it to say "this is the best performing model" then fit the model on all of our sample data?
+
 # Shiny App
 
 ```{r}
@@ -881,8 +892,13 @@ ui = navbarPage(title = div(img(
                             }'))
          ),
                 
-      tabPanel("Predictive Modeling",
+      tabPanel(title = "Predictive Modeling",
                
+               
+          tags$head(
+           tags$style(HTML('.dx-tabpanel .dx-tab {height: 70px;}'))
+         ),
+         
            fluidPage(
             
              titlePanel(title = h4("Premature Deaths Prediction", align = "center")),
@@ -911,13 +927,15 @@ ui = navbarPage(title = div(img(
              
             mainPanel(uiOutput("text1"),
               tags$head(tags$style("#text1{color: black;
-                                 font-size: 20px;
+                                 font-size: 30px;
+                                 line-height: 6.0;
+                                 text-indent: 20px;
                                  }"
                          )))
 
              ))),
   
-    tabPanel("Premature Deaths Map",
+    tabPanel(title = "Premature Deaths Map",
              
     fluidPage(
         
@@ -959,7 +977,7 @@ server = function(input,output){
   #Text output
   pred_reactive <- eventReactive(input$go, #put the expected YPLL text together
     {
-      paste("The expected county YPLL is:", shiny_pred(), "Years")
+      paste("The expected county YPLL per 100k is:", shiny_pred(), "Years")
   })
   
   output$text1 <- renderUI({pred_reactive()})
