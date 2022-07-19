@@ -1,0 +1,259 @@
+---
+title: "0718-Lecture"
+output: html_document
+date: '2022-07-18'
+---
+
+# Decision Trees
+
+## What is Machine Learning?
+
+The short version:
+
+- Machine learning (ML) is a subset of statistical learning that focuses on prediction
+
+The longer version:
+
+- ML focuses on constructing data-driven algorithms that *learn* the mapping between predictor variables and response variable(s). 
+
+ - We do not assume a parametric form for the mapping *a priori*, even if technically one can write one down *a posteriori* (e.g., by translating a tree model to a indicator-variable mathematical expression)
+
+  - e.g., linear regression is NOT considered a ML algorithm since we can write down the linear equation ahead of time
+  
+  - e.g., random forests are considered an ML algorithm since we have what the trees will look like in advance
+
+## Which algorithm is best?
+
+__That's not the right question to ask.__
+
+(And the answer is *not* deep learning. Because if the underlying relationship between your predictors and your response is truly linear, *you do not need to apply deep learning*! Just do linear regression. Really. It's OK.)
+
+The right question is ask is: __why should I try different algorithms?__
+
+The answer to that is that without superhuman powers, you cannot visualize the distribution of predictor variables in their native space. 
+
+  - Of course, you can visualize these data *in projection*, for instance when we perform EDA
+  
+  - And the performance of different algorithms will depend on how predictor data are distributed...
+
+### Data geometry
+
+```{r out.width='70%', echo = FALSE, fig.align='center'}
+library(tidyverse)
+library(magick)
+image_read("http://www.stat.cmu.edu/~pfreeman/data_geometry.png") %>% print()
+```
+
+- Two predictor variables with binary response variable: x's and o's 
+
+- __LHS__: Linear boundaries that form rectangles will peform well in predicting response
+
+- __RHS__: Circular boundaries will perform better
+
+## Decision trees
+
+Decision trees partition training data into __homogenous nodes / subgroups__ with similar response values
+
+The subgroups are found __recursively using binary partitions__ 
+
+  - i.e. asking a series of yes-no questions about the predictor variables
+
+We stop splitting the tree once a __stopping criteria__ has been reached (e.g. maximum depth allowed)
+
+For each subgroup / node predictions are made with:
+
+- Regression tree: __the average of the response values__ in the node
+
+- Classification tree: __the most popular class__ in the node
+
+Most popular approach is Leo Breiman's __C__lassification __A__nd __R__egression __T__ree (CART) algorithm
+
+## Decision tree structure
+
+```{r out.width='100%', echo = FALSE, fig.align='center'}
+image_read("https://bradleyboehmke.github.io/HOML/images/decision-tree-terminology.png") %>% print()
+```
+
+## Decision tree structure
+
+We make a prediction for an observation by __following its path along the tree__
+
+```{r out.width='100%', echo = FALSE, fig.align='center'}
+image_read("https://bradleyboehmke.github.io/HOML/images/exemplar-decision-tree.png") %>% print()
+```
+
+- Decision trees are __very easy to explain__ to non-statisticians.
+
+- Easy to visualize and thus easy to interpret __without assuming a parametric form__
+
+### Recursive splits: each _split / rule_ depends on previous split / rule _above_ it
+
+__Objective at each split__: find the __best__ variable to partition the data into one of two regions, $R_1$ & $R_2$, to __minimize the error__ between the actual response, $y_i$, and the node's predicted constant, $c_i$
+
+- For regression we minimize the sum of squared errors (SSE):
+
+$$S S E=\sum_{i \in R_{1}}\left(y_{i}-c_{1}\right)^{2}+\sum_{i \in R_{2}}\left(y_{i}-c_{2}\right)^{2}$$
+
+- For classification trees we minimize the node's _impurity_ the __Gini index__
+
+  - where $p_k$ is the proportion of observations in the node belonging to class $k$ out of $K$ total classes
+  
+  - want to minimize $Gini$: small values indicate a node has primarily one class (_is more pure_)
+
+$$Gini = 1 - \sum_k^K p_k^2$$
+
+Splits yield __locally optimal__ results, so we are NOT guaranteed to train a model that is globally optimal
+
+_How do we control the complexity of the tree?_
+
+## Tune the __maximum tree depth__ or __minimum node size__
+
+```{r out.width='60%', echo = FALSE, fig.align='center'}
+image_read("https://bradleyboehmke.github.io/HOML/07-decision-trees_files/figure-html/dt-early-stopping-1.png") %>% print()
+```
+
+## Prune the tree by tuning __cost complexity__
+
+Can grow a very large complicated tree, and then __prune__ back to an optimal __subtree__ using a __cost complexity__ parameter $\alpha$ (like $\lambda$ for elastic net) 
+
+- $\alpha$ penalizes objective as a function of the number of __terminal nodes__
+
+- e.g., we want to minimize $SSE + \alpha \cdot (\# \text{  of terminal nodes})$ 
+
+```{r out.width='80%', echo = FALSE, fig.align='center'}
+image_read("https://bradleyboehmke.github.io/HOML/07-decision-trees_files/figure-html/pruned-tree-1.png") %>% print()
+```
+
+## Example data: MLB 2022 batting statistics
+
+Downloaded MLB 2022 batting statistics leaderboard from [Fangraphs](https://www.fangraphs.com/leaders.aspx?pos=all&stats=bat&lg=all&qual=y&type=8&season=2022&month=0&season1=2022&ind=0)
+
+```{r load-data, warning = FALSE, message = FALSE}
+library(tidyverse)
+
+mlb_data <- read_csv("http://www.stat.cmu.edu/cmsac/sure/2022/materials/data/sports/fg_batting_2022.csv") %>%
+  janitor::clean_names() %>%
+  mutate_at(vars(bb_percent:k_percent), parse_number)
+
+head(mlb_data)
+```
+
+## Regression tree example with the [`rpart` package](https://cran.r-project.org/web/packages/rpart/vignettes/longintro.pdf)
+
+```{r init-rpart}
+library(rpart)
+init_mlb_tree <- rpart(formula = w_oba ~ bb_percent + k_percent + iso,
+                       data = mlb_data, method  = "anova")
+init_mlb_tree #LOSS: MSE for regression, GINI Impurity for Classification
+```
+
+## Display the tree with [`rpart.plot`](plhttp://www.milbo.org/rpart-plot/)
+
+```{r plot-tree, fig.align ='center', fig.height=6}
+library(rpart.plot)
+rpart.plot(init_mlb_tree) #leaves and nodes represent avg response value and the % of data within them
+```
+
+- `rpart()` runs 10-fold CV to tune $\alpha$ for pruning
+
+- Selects # terminal nodes via 1 SE rule
+
+```{r plot-complexity, fig.align ='center', fig.height=5}
+plotcp(init_mlb_tree)
+```
+
+## What about the full tree? (check out `rpart.control`)
+
+```{r plot-full-tree, fig.align ='center', fig.height=4}
+full_mlb_tree <- rpart(formula = w_oba ~ bb_percent + k_percent + iso,
+                       data = mlb_data, method  = "anova", 
+                       control = list(cp = 0, xval = 10))
+
+rpart.plot(full_mlb_tree)
+```
+
+```{r plot-full-complexity, fig.align ='center', fig.height=4}
+plotcp(full_mlb_tree)
+```
+
+## Train with `caret`
+
+```{r caret-tree, fig.align ='center', fig.height=5}
+library(caret)
+caret_mlb_tree <- train(w_oba ~ bb_percent + k_percent + iso + avg + obp + slg + war,
+                        data = mlb_data, method = "rpart",
+                        trControl = trainControl(method = "cv", number = 10),
+                        tuneLength = 20)
+
+ggplot(caret_mlb_tree) + theme_bw()
+```
+
+## Display the final model
+
+```{r, fig.align ='center', fig.height=6}
+rpart.plot(caret_mlb_tree$finalModel)
+```
+
+## Summarizing variables in tree-based models
+
+__Variable importance__ - based on reduction in SSE (_notice anything odd?_)
+
+```{r var-imp, fig.align ='center', fig.height=4}
+library(vip)
+vip(caret_mlb_tree, geom = "point") + theme_bw()
+```
+
+- Summarize single variable's relationship with __partial dependence plot__
+
+```{r pdp, fig.align ='center', fig.height=4}
+library(pdp)
+partial(caret_mlb_tree, pred.var = "obp") %>% autoplot() + theme_bw()
+```
+
+## Classification: predicting MLB HRs
+
+Used the [`baseballr`](http://billpetti.github.io/baseballr/) package to scrape all batted-balls from 2022 season for EDA project:
+
+```{r load-bb-data, warning = FALSE, message = FALSE}
+library(tidyverse)
+batted_ball_data <- read_csv("http://www.stat.cmu.edu/cmsac/sure/2022/materials/data/sports/eda_projects/mlb_batted_balls_2022.csv") %>%
+  mutate(is_hr = as.numeric(events == "home_run")) %>%
+  filter(!is.na(launch_angle), !is.na(launch_speed),
+         !is.na(is_hr))
+table(batted_ball_data$is_hr)
+```
+
+## Predict HRs with launch angle and exit velocity?
+
+```{r plot-baseball, eval = FALSE}
+batted_ball_data %>%
+  ggplot(aes(x = launch_speed, 
+             y = launch_angle,
+             color = as.factor(is_hr))) +
+  geom_point(alpha = 0.5) +
+  ggthemes::scale_color_colorblind(labels = c("No", "Yes")) +
+  labs(x = "Exit velocity", 
+       y = "Launch angle", 
+       color = "HR?") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+- HRs are relatively rare and confined to one area of this plot
+
+## Train with `caret`
+
+```{r hr-tree, fig.align ='center', fig.height=5}
+library(caret)
+caret_hr_tree <- train(as.factor(is_hr) ~ launch_speed + launch_angle,
+                        data = batted_ball_data, method = "rpart",
+                        trControl = trainControl(method = "cv", number = 10),
+                        tuneLength = 20)
+ggplot(caret_hr_tree) + theme_bw()
+```
+
+## Display the final model
+
+```{r, fig.align ='center', fig.height=6}
+rpart.plot(caret_hr_tree$finalModel)
+```
