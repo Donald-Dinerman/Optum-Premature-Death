@@ -292,10 +292,34 @@ demo_response_clean_df = demo_response_df %>%
                names_to = "Race", values_to = "YPLL")
 ```
 
-###HEREEEEEEEEE
+```{r}
+#function to get states from region for reactive plot
+expand_region = function(x){
+  
+  states_expanded <- if(x == "Northeast"){
+    c('Connecticut', 'New Jersey', 'New York', 'Pennsylvania', 'Maine', 'Massachusetts', 'New Hampshire', 'Rhode Island', 
+    'Vermont')
+    
+    } else if(x == "Midwest"){
+      c('Illinois', 'Indiana', 'Michigan', 'Ohio', 'Wisconsin', 'Iowa', 'Kansas', 'Minnesota', 'Missouri', 'Nebraska', 
+    'North Dakota', 'South Dakota')
+      
+      } else if(x == "South"){
+  c('Delaware', 'Florida', 'Georgia', 'Maryland', 'North Carolina', 'South Carolina', 'Virginia', 'District of Columbia', 
+    'West Virginia', 'Alabama', 'Kentucky', 'Mississippi', 'Tennessee', 'Arkansas', 'Louisiana', 'Oklahoma', 'Texas')
+        
+        } else if(x == "West"){
+  c('Arizona', 'Colorado', 'Idaho', 'Montana', 'Nevada', 'New Mexico', 'Utah', 'Wyoming', 'Alaska', 'California', 'Hawaii', 
+    'Oregon', 'Washington')
+        } else {c()} #All case
+  
+  states_expanded
+}
+```
+
 ```{r}
 #Modify: cleaned race_type inputs based on shiny list, extra: regional input flexibility
-demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c(), region = c()) {
+demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c(), region = '') {
   
   #Filter readable input to variable name in df
   filter_input = case_when(
@@ -307,20 +331,24 @@ demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c(), reg
     Race_Type == "White" ~ "YPLL Rate (white)"
   )
   
-  plot_usmap(data = filter(df, Race == filter_input), values = "YPLL", color = "black", include = region) + 
+  #Expand region input so it is readable in plot
+  filter_region = expand_region(region)
+
+  plot_usmap(data = filter(df, Race == filter_input), values = "YPLL", color = "black", include = filter_region) + 
   scale_fill_continuous(low = "white", high = "red", name = "YPLL (2020)", label = scales::comma, limits = limit_set) + 
-  theme(legend.position = "right") +
+  theme(legend.position = "right",
+        legend.key.size = unit(10, 'mm')) +
   labs(title = "") #Race_Type
 
 }
 
 #Difficult to set standard limits because range varies significantly across demographic groups
-demo_map(Race_Type = "Asian", region = 'Alaska')
-demo_map(Race_Type = "Native American")
-demo_map(Race_Type = "Black")
-demo_map(Race_Type = "Hispanic")
-demo_map(Race_Type = "White")
-demo_map(Race_Type = "All", limit_set = c(5000,11500))
+demo_map(Race_Type = "Asian", region = "West")
+demo_map(Race_Type = "Native American", region = "South")
+demo_map(Race_Type = "Black", region = "All")
+demo_map(Race_Type = "Hispanic", region = "Northeast")
+demo_map(Race_Type = "White", region = "Midwest")
+demo_map(Race_Type = "All")
 ```
 
 ## Predictors
@@ -514,14 +542,12 @@ library(GGally)
 county_num_df = county_pred_df[ ,!sapply(county_pred_df, is.character)] %>%
   relocate(YPLL, .before = drink_per)
 
-end = length(county_num_df)
-half = (end/2) %>% ceiling()
-
-ggpairs(county_num_df[,c(1:half)])
-
-ggpairs(county_num_df[,c(1,half:end)])
-
-cor(county_num_df[,-end]) %>% round(2)
+# end = length(county_num_df)
+# half = (end/2) %>% ceiling()
+# 
+# ggpairs(county_num_df[,c(1:half)])
+# ggpairs(county_num_df[,c(1,half:end)])
+# cor(county_num_df[,-c(end-1,)]) %>% round(2)
 ```
 
 # Modeling
@@ -709,7 +735,6 @@ summary(mixed_mod) #why fixed effects are dif than in linear mod
 
 ### GAM
 
-#### HELP: tune parameters
 ```{r}
 library(caret)
 library(mgcv)
@@ -764,8 +789,6 @@ summary(model_gbm)
 ```
 
 ## Model Validation
-
-## Can TEST county_class vs population variable (this can output per capita YPLL)
 
 Perform k-Fold CV on counties within States to limit the chance of having a fold over or under representing a particular state
 e.g., randomly assign 1:5 across all counties within each state
@@ -841,13 +864,41 @@ Simple gam (7 features) performs outperforms gam with all 11 features within int
 
 Interesting is that population instead of county_class outperforms very slightly, which is to be expected especially in GAM bc we lose some variability in information when transforming population to 3 county classes
 
+
+#HELPPP: I tested models using df w p parameters and the df was filtered w na.omit on all p. But i settled on a model with p-4 parameters, so can I refilter my dataframe so it only na.omit on those p-4 parameters? (difference of ~80 obs)? Discuss using county class rather than population? How can I do variable importance plot with gam?
 ```{r}
 library(hablar)
 
+#Final model df
+final_df = reliable_data %>%
+  group_by(State, County) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
+  summarise(
+            #Alcohol/Drug
+            drink_per = `% Excessive Drinking`, 
+            #food/exercise
+            inactive_per = `% Physically Inactive`, 
+            food_per = `% Food Insecure`, 
+            obesity_rate = `% Adults with Obesity`,
+            #tobacco
+            smoke = `% Smokers`,
+            #sex
+            std = `Chlamydia Rate`,
+            #response
+            YPLL,
+            #Cluster
+            county_class = as.factor(county_class),
+            #Population
+            Population) %>%
+  na.omit()
+
 #Finalized model
-final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) + as.factor(county_class),
-                      data = county_num_df, 
+final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
+                         as.factor(county_class), #alternative: s(Population)
+                      data = final_df, 
                       method = "REML")
+
+summary(final_gam_model)
 
 # Test the df read in for predict in shiny
 # test_var = c(35.2, 25.11, "Urban", 14.44, 15.11, 40, 500)
@@ -862,19 +913,20 @@ final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + 
 # predict(final_gam_model, newdata = test_df)
 ```
 
-
 # Conclusions
 
-# To Do: (1) Get year labels on all features, (2) Shiny App (Modify functional EDA), (3) Formalize EDA, Methods and Conclusions 
+# To Do: (1) Get year labels on all features, (2) Shiny App, (3) Formalize EDA, Methods and Conclusions 
 
 # Shiny App
 
+#HELP: Should I add VIP for GAM model in pred panel, change size of tabpanel titles
 ```{r}
 library(shiny)
 library(shinyBS)
 
 county_options = c("Urban", "Suburban", "Rural") %>% sort()
 demo_options = c("All", "Asian", "Black", "Hispanic", "Native American", "White") %>% sort()
+region_options = c('All',"Northeast", "Midwest", "South", "West") %>% sort()
 df_names = c("county_class", "inactive_per", "obesity_rate", "food_per", "drink_per", "smoke", "std")
 ```
 
@@ -888,20 +940,18 @@ ui = navbarPage(title = div(img(
            tags$style(HTML('.navbar-nav > li > a, .navbar-brand {
                             padding-top:4px !important; 
                             padding-bottom:0 !important;
-                            height: 65px; #Alter height of navbarpage using CSS
-                            }'))
+                            height: 65px;
+                            }')) #Alter height of navbarpage using CSS
          ),
                 
       tabPanel(title = "Predictive Modeling",
-               
-               
-          tags$head(
-           tags$style(HTML('.dx-tabpanel .dx-tab {height: 70px;}'))
-         ),
-         
+                tags$style(HTML(".tabbable tabs-above > .nav > li > a {
+                                background-color: aqua;  
+                                color:black}")),
+    
            fluidPage(
             
-             titlePanel(title = h4("Premature Deaths Prediction", align = "center")),
+             titlePanel(title = h2("Premature Deaths Prediction", align = "center")),
               
              sidebarLayout(
                
@@ -927,8 +977,8 @@ ui = navbarPage(title = div(img(
              
             mainPanel(uiOutput("text1"),
               tags$head(tags$style("#text1{color: black;
-                                 font-size: 30px;
-                                 line-height: 6.0;
+                                 font-size: 20px;
+                                 line-height: 5.0;
                                  text-indent: 20px;
                                  }"
                          )))
@@ -939,12 +989,12 @@ ui = navbarPage(title = div(img(
              
     fluidPage(
         
-        titlePanel(title = h4("Premature Deaths Map", align = "center")),
+        titlePanel(title = h2("Premature Deaths Map", align = "center")),
         
         sidebarLayout(
         sidebarPanel( 
-            selectInput(inputId = "demo", label = "Race:", choices = demo_options)
-            #selectInput(inputId = "region", label = "Region:", choices = region_options) #optional addition
+            selectInput(inputId = "demo", label = "Race:", choices = demo_options),
+            selectInput(inputId = "region", label = "Region:", choices = region_options) #optional addition
             ),
       
         mainPanel(
@@ -985,7 +1035,7 @@ server = function(input,output){
   #Plot output
   output$plot1 <- renderPlot({
     
-    demo_map(Race_Type = input$demo)
+    demo_map(Race_Type = input$demo, region = input$region)
   }, 
   height = 650, width = 1100)
   
