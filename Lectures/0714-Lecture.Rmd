@@ -364,7 +364,6 @@ batted_ball_data %>%
   summarize(correct = mean(is_hr == init_glm_hr_class))
 ```
 
-
 __Very few situations in reality where linear regressions perform better than an additive model using smooth functions__ - especially since smooth functions can just capture linear models...
 
 ## Continuous interactions as a smooth surface
