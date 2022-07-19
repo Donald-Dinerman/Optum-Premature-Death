@@ -292,7 +292,9 @@ demo_response_clean_df = demo_response_df %>%
                names_to = "Race", values_to = "YPLL")
 ```
 
+###HEREEEEEEEEE
 ```{r}
+#Modify: cleaned race_type inputs based on shiny list, extra: regional input flexibility
 demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c()) {
   
   plot_usmap(data = filter(df, Race == Race_Type), values = "YPLL", color = "black") + 
@@ -470,7 +472,7 @@ ggplot(county_tobacco_sex_df, aes(y = YPLL, x = std, color = county_class)) +
        color = "County Class")
 ```
 
-#### Diet/Exercise
+#### Alcohol/Drug & Diet/Exercise
 
 ```{r}
 county_pred_df = reliable_data %>%
@@ -668,7 +670,8 @@ holdout_predictions %>%
 library(ggfortify)
 
 #Aggregated data: Underestimates variability, Inflated SE, Inflated R^2
-lm_mod = lm(YPLL ~ std + smoke + food_per, data = county_num_df)
+lm_mod = lm(YPLL ~ std + smoke + food_per + drink_per + county_class, data = county_num_df)
+
 #autoplot(lm_mod, ncol = 2) + theme_bw() #mod assumptions
 
 summary(lm_mod) #Output
@@ -691,11 +694,12 @@ mixed_mod = lmer(YPLL ~ std + smoke + food_per + (1 | county_class), data = coun
 summary(mixed_mod) #why fixed effects are dif than in linear mod
 ```
 
-### Tree Based Model
+### GAM
 
+#### HELP: tune parameters
 ```{r}
 library(caret)
-library(gbm)
+library(mgcv)
 
 #Train/Test Data
 set.seed(1)
@@ -705,6 +709,25 @@ test = county_num_df[-parts, ]
 
 test_x = select(test, -YPLL) # feature and target array
 test_y = select(test, YPLL)
+
+#Train gam model
+#Tuning Parameters: Number of basis functions, # knots
+gam_model = gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_per) + s(exercise_access_per) + s(food_per) + 
+                  s(healthy_access_per) + s(obesity_rate) + s(smoke) + s(std) + as.factor(county_class), 
+                data = train, 
+                method = "REML")
+
+summary(gam_model)
+
+plot(gam_model)
+```
+
+
+### Tree Based Model
+
+```{r}
+#Given the linear relationships in the data, the tree based method didn't outperform lm and under performed GAM
+library(gbm)
 
 #Train GBM Model
 model_gbm = gbm(train$YPLL ~.,
@@ -719,7 +742,7 @@ model_gbm = gbm(train$YPLL ~.,
 print(model_gbm)
 
 summary(model_gbm)
-# 
+
 # #Test Set Predictions
 # pred_y = predict.gbm(model_gbm, test_x)
 # 
@@ -734,22 +757,24 @@ summary(model_gbm)
 Perform k-Fold CV on counties within States to limit the chance of having a fold over or under representing a particular state
 e.g., randomly assign 1:5 across all counties within each state
 
-#### HELP: Add mixed effects model (why is it the same as lm), explore/discuss CV results, discuss alternative linear modeling approaches, should I explore alternative tree based approaches (can look into xgboost[regularization approach built in])
 ```{r}
 #stratified k fold
-set.seed(1)
+strat_cv = function(k = 5, seed = 123){
+  
+  set.seed(seed)
+  state_list = unique(county_pred_df$state)
+  strat_df = data.frame()
 
-state_list = unique(county_pred_df$state)
-strat_df = data.frame()
-
-for (i in 1:length(state_list)){
-  df = filter(county_pred_df, state == state_list[i])
-  new_df = mutate(df, test_fold = sample(1:5, replace = T, size = nrow(df)))
-  strat_df = rbind(strat_df, new_df)
+  for (i in 1:length(state_list)){
+    df = filter(county_pred_df, state == state_list[i])
+    new_df = mutate(df, test_fold = sample(1:k, replace = T, size = nrow(df)))
+    strat_df = rbind(strat_df, new_df)
+  }
+  
+  strat_df %>% ungroup() %>% select(-c(state, County))
 }
 
-#note: reg techniques don't accept char x, county_class doesn't help predictions anyways
-strat_cv_df = strat_df %>% ungroup() %>% select(-c(state, County)) 
+strat_cv_df = strat_cv(5)
 
 #Calculate holdout predictions
 holdout_predictions <- 
@@ -766,31 +791,24 @@ holdout_predictions <-
 
             # Train models:
             lm_model <- lm(YPLL ~ ., data = train_data)
-            mixed_model <- lmer(YPLL ~ . + (1 | county_class), data = train_data)
-            # ridge_model <- cv.glmnet(train_x, train_data$YPLL, alpha = 0)
-            # lasso_model <- cv.glmnet(train_x, train_data$YPLL, alpha = 1)
-            # en_model <- cv.glmnet(train_x, train_data$YPLL, alpha = .5)
-            gbm_model <- gbm(train_data$YPLL ~.,
-                data = train_data,
-                distribution = "gaussian",
-                cv.folds = 1, #cv within cv?, is the gbm selecting trees using cv within the train data
-                shrinkage = .1,
-                n.minobsinnode = 10,
-                n.trees = 250,
-                verbose = F)
+            gam_model <- gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_per) + s(exercise_access_per) + s(food_per) +
+                            s(healthy_access_per) + s(obesity_rate) + s(smoke) + s(std) + as.factor(county_class), 
+                            data = train, 
+                            method = "REML")
+            simple_gam_model <-  gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
+                                       as.factor(county_class),
+                                     data = train, 
+                                     method = "REML")
 
             # Return tibble of holdout results:
             tibble(lm_preds = predict(lm_model, newdata = test_data), #linear model
-                   mixed_preds = predict(mixed_model, newdata = test_data, re.form = ~(1 | county_class)), #mixed model
-                   # ridge_preds = as.numeric(predict(ridge_model, newx = test_x)), #ridge
-                   # lasso_preds = as.numeric(predict(lasso_model, newx = test_x)), #lasso
-                   # en_preds = as.numeric(predict(en_model, newx = test_x)), #elastic net
-                   gbm_preds = predict.gbm(gbm_model, newdata = test_data), #gbm model
+                   gam_preds = predict(gam_model, newdata = test_data), #gam model
+                   simple_gam_preds = predict(simple_gam_model, newdata = test_data),
                    test_actual = test_data$YPLL, test_fold = holdout)
           })
 
 holdout_predictions %>%
-  pivot_longer(lm_preds:gbm_preds, 
+  pivot_longer(lm_preds:simple_gam_preds, 
                names_to = "type", values_to = "test_preds") %>%
   group_by(type, test_fold) %>%
   summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>% 
@@ -803,9 +821,105 @@ holdout_predictions %>%
   labs(y = "RMSE", x = "Model Type")
 ```
 
-The best performing models are GBM and linear regression. May go with linear regression which makes sense because the modeled y ~ x relationships are linear but I want a little fancier type of linear regression.
+Simple gam (7 features) performs approximately the same as gam with all 11 features. For simplicity in potential Shiny App interface simple gam seems to be the way to go.
 
 # Conclusions
+
+# To Do: (1) Get year labels on all features, (2) Shiny App (Modify functional EDA), (3) Formalize EDA, Methods and Conclusions 
+
+# Shiny App
+
+```{r}
+library(shiny)
+library(shinyBS)
+
+county_options = c("Urban", "Suburban", "Rural") %>% sort()
+demo_options = c("All", "Asian", "Black", "Hispanic", "Native American", "White") %>% sort()
+```
+
+```{r}
+#Modify tabpanel title height x width (CSS needed)
+ui = navbarPage(title = div(img(
+  
+  src = "https://512solutions.com/wp-content/uploads/2021/04/Optum-logo.png", height = 55, width = 190), ""),
+  
+          tags$head(
+           tags$style(HTML('.navbar-nav > li > a, .navbar-brand {
+                            padding-top:4px !important; 
+                            padding-bottom:0 !important;
+                            height: 65px; #Alter height of navbarpage using CSS
+                            }'))
+         ),
+                
+      tabPanel("Predictive Modeling",
+               
+           fluidPage(
+            
+             titlePanel(title = h4("Premature Deaths Prediction", align = "center")),
+              
+             sidebarLayout(
+               
+             sidebarPanel( 
+                selectInput(inputId = "county_class", label = "County Type:", choices = county_options),
+                numericInput(inputId = "inactive_per", label = "Inactivity %:", value = 0, min = 0, max = 100, step = 0.1),
+                numericInput(inputId = "obesity_rate", label = "Obesity %:", value = 0, min = 0, max = 100, step = 0.1),
+                numericInput(inputId = "food_per", label = "Food Insecure %:", value = 0, min = 0, max = 100, step = 0.1),
+                numericInput(inputId = "drink_per", label = "Physically Inactive %:", value = 0, min = 0, max = 100, step = 0.1),
+                numericInput(inputId = "smoke", label = "Smoking %:", value = 0, min = 0, max = 100, step = 0.1),
+                numericInput(inputId = "std", label = "Chlamydia Cases:", value = 0, min = 0, max = 5000, step = 0.1),
+                
+                actionButton(inputId = "go", label = "Predict"),
+                
+                bsTooltip(id = "county_class", title = "County Description"),
+                bsTooltip(id = "inactive_per", title = "% of Adults Reporting No Leisure Time Physical Activity"),
+                bsTooltip(id = "obesity_rate", title = "% of Adults with BMI > 30"),
+                bsTooltip(id = "food_per", title = "% of Population With Poor Access to Food"),
+                bsTooltip(id = "drink_per", title = "% of Adults Reporting Binge/Heavy Drinking"),
+                bsTooltip(id = "smoke", title = "% of Adults Smoking Tobacco"),
+                bsTooltip(id = "std", title = "Number of Chlamydia Cases per 100k")
+             ),
+             
+            mainPanel(uiOutput("text1"),
+              tags$head(tags$style("#text1{color: black;
+                                 font-size: 20px;
+                                 }"
+                         )))
+
+             ))),
+  
+    tabPanel("Premature Deaths Map",
+             
+    fluidPage(
+        
+        titlePanel(title = h4("Premature Deaths Map", align = "center")),
+        
+        sidebarLayout(
+        sidebarPanel( 
+            selectInput(inputId = "demo", label = "Race:", choices = demo_options)
+            #selectInput(inputId = "region", label = "Region:", choices = region_options) #optional addition
+            ),
+      
+        mainPanel(
+          plotOutput("plot1"))
+        ))         
+             
+  ))
+```
+
+```{r}
+server = function(input,output){
+  
+  
+  
+  
+  
+}
+```
+
+```{r}
+#run app
+shinyApp(ui = ui, server = server)
+```
 
 
 
