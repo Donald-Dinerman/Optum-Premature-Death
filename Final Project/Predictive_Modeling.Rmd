@@ -826,7 +826,7 @@ Simple gam (7 features) performs approximately the same as gam with all 11 featu
 # Conclusions
 
 # To Do: (1) Get year labels on all features, (2) Shiny App (Modify functional EDA), (3) Formalize EDA, Methods and Conclusions 
-
+#QUESTION: When doing CV/model validation, do we just use it to say "this is the best performing model" then fit the model on all of our sample data?
 # Shiny App
 
 ```{r}
