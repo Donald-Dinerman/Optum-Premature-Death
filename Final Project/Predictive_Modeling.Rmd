@@ -156,19 +156,19 @@ reliable_data = reliable_data %>%
 #Why don't these match up (there's a minor computational discrepancy to the +- 0.2 lvl)
 comb_data %>%
   group_by(State) %>%
-  slice(1) %>%
+  dplyr::slice(1) %>%
   summarise(a = `Years of Potential Life Lost Rate`)
 
 comb_data %>%
   group_by(State) %>%
-  slice(-1) %>%
+  dplyr::slice(-1) %>%
   summarise(a = sum(`Years of Potential Life Lost Rate` * `Population`, na.rm = T),
             b = sum(`Population`, na.rm = T),
             c = a/b)
 
 reliable_data %>%
   group_by(State) %>%
-  slice(-1) %>%
+  dplyr::slice(-1) %>%
   summarise(a = sum(`Years of Potential Life Lost Rate` * `Population`, na.rm = T),
             b = sum(`Population`, na.rm = T),
             c = a/b)
@@ -218,7 +218,7 @@ library(ggplot2)
 #State
 state_df = reliable_data %>%
   group_by(State) %>%
-  slice(1) %>%
+  dplyr::slice(1) %>%
   rename(., state = State, YPLL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy')
 
 #YPLL (low values good)
@@ -245,7 +245,7 @@ plot_usmap(data = state_df, values = "YPLL", color = "black", include = .south_r
 #County
 county_df = reliable_data %>%
   group_by(State) %>%
-  slice(-1) %>%
+  dplyr::slice(-1) %>%
   rename(., fips = FIPS, YPLL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy') #%>%
   #filter(Life_Expectancy < 100, YPLL < 25000)
 
@@ -269,10 +269,10 @@ plot_usmap(data = county_df, values = "YPLL", color = "black") +
 #state level demo data
 demo_response_df = reliable_data %>%
   group_by(State) %>%
-  slice(1) %>%
+  dplyr::slice(1) %>%
   ungroup(State) %>%
-  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy') %>%
-  select(., contains(c("YPLL Rate (", "state")))
+  rename(., state = State, all_YPLL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy') %>%
+  select(., contains(c("YPLL Rate (", "state", "all_YPLL")))
 
 #Check unreliable demo ypll across states
 # quick = function(x){x %>% is.na() %>% sum()}
@@ -297,19 +297,30 @@ demo_response_clean_df = demo_response_df %>%
 #Modify: cleaned race_type inputs based on shiny list, extra: regional input flexibility
 demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c()) {
   
-  plot_usmap(data = filter(df, Race == Race_Type), values = "YPLL", color = "black") + 
+  #Filter readable input to variable name in df
+  filter_input = case_when(
+    Race_Type == "All" ~ "all_YPLL",
+    Race_Type == "Asian" ~ "YPLL Rate (Asian)",
+    Race_Type == "Black" ~ "YPLL Rate (Black)",
+    Race_Type == "Hispanic" ~ "YPLL Rate (Hispanic)",
+    Race_Type == "Native American" ~ "YPLL Rate (AIAN)",
+    Race_Type == "White" ~ "YPLL Rate (white)"
+  )
+  
+  plot_usmap(data = filter(df, Race == filter_input), values = "YPLL", color = "black") + 
   scale_fill_continuous(low = "white", high = "red", name = "YPLL (2020)", label = scales::comma, limits = limit_set) + 
   theme(legend.position = "right") +
-  labs(title = Race_Type)
-  
+  labs(title = "") #Race_Type
+
 }
 
 #Difficult to set standard limits because range varies significantly across demographic groups
-demo_map(Race_Type = "YPLL Rate (AIAN)")
-demo_map(Race_Type = "YPLL Rate (Asian)")
-demo_map(Race_Type = "YPLL Rate (Black)")
-demo_map(Race_Type = "YPLL Rate (Hispanic)")
-demo_map(Race_Type = "YPLL Rate (white)")
+demo_map(Race_Type = "Asian")
+demo_map(Race_Type = "Native American")
+demo_map(Race_Type = "Black")
+demo_map(Race_Type = "Hispanic")
+demo_map(Race_Type = "White")
+demo_map(Race_Type = "All", limit_set = c(5000,11500))
 ```
 
 ## Predictors
@@ -404,7 +415,7 @@ setdiff(county_df, no_na_pred_df) %>% #find rows not in subsetted df comparing t
 ```{r}
 state_tobacco_sex_df = reliable_data %>%
   group_by(State) %>%
-  slice(1) %>%
+  dplyr::slice(1) %>%
   rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
   summarise(smoke = `% Smokers`, std = `Chlamydia Rate`, YPLL)
 
@@ -718,8 +729,6 @@ gam_model = gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_pe
                 method = "REML")
 
 summary(gam_model)
-
-plot(gam_model)
 ```
 
 
@@ -739,7 +748,7 @@ model_gbm = gbm(train$YPLL ~.,
                 n.trees = 250,
                 verbose = F)
  
-print(model_gbm)
+#print(model_gbm)
 
 summary(model_gbm)
 
@@ -754,12 +763,14 @@ summary(model_gbm)
 
 ## Model Validation
 
+## Can TEST county_class vs population variable (this can output per capita YPLL)
+
 Perform k-Fold CV on counties within States to limit the chance of having a fold over or under representing a particular state
 e.g., randomly assign 1:5 across all counties within each state
 
 ```{r}
 #stratified k fold
-strat_cv = function(k = 5, seed = 123){
+strat_cv = function(k = 5, seed = 100){
   
   set.seed(seed)
   state_list = unique(county_pred_df$state)
@@ -784,20 +795,16 @@ holdout_predictions <-
             # Separate test and training data:
             test_data <- strat_cv_df %>% filter(test_fold == holdout)
             train_data <- strat_cv_df %>% filter(test_fold != holdout)
-            
-            # Repeat for matrices
-            test_x <- as.matrix(dplyr::select(test_data, -YPLL))
-            train_x <- as.matrix(dplyr::select(train_data, -YPLL))
-
+          
             # Train models:
             lm_model <- lm(YPLL ~ ., data = train_data)
             gam_model <- gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_per) + s(exercise_access_per) + s(food_per) +
                             s(healthy_access_per) + s(obesity_rate) + s(smoke) + s(std) + as.factor(county_class), 
-                            data = train, 
+                            data = train_data, 
                             method = "REML")
             simple_gam_model <-  gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
-                                       as.factor(county_class),
-                                     data = train, 
+                                     as.factor(county_class),
+                                     data = train_data, 
                                      method = "REML")
 
             # Return tibble of holdout results:
@@ -823,6 +830,28 @@ holdout_predictions %>%
 
 Simple gam (7 features) performs approximately the same as gam with all 11 features. For simplicity in potential Shiny App interface simple gam seems to be the way to go.
 
+```{r}
+library(hablar)
+
+#Finalized model
+final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) + as.factor(county_class),
+                      data = county_num_df, 
+                      method = "REML")
+
+# Test the df read in for predict in shiny
+# test_var = c(35.2, 25.11, "Urban", 14.44, 15.11, 40, 500)
+# 
+# test_names = c("inactive_per", "obesity_rate", "county_class", "food_per", "drink_per", "smoke", "std")
+# 
+# test_df = data.frame(matrix(nrow = 1, test_var)) %>% 
+#   retype() #smart guess of appropriate classes
+# 
+# colnames(test_df) = test_names
+# 
+# predict(final_gam_model, newdata = test_df)
+```
+
+
 # Conclusions
 
 # To Do: (1) Get year labels on all features, (2) Shiny App (Modify functional EDA), (3) Formalize EDA, Methods and Conclusions 
@@ -835,7 +864,7 @@ library(shinyBS)
 
 county_options = c("Urban", "Suburban", "Rural") %>% sort()
 demo_options = c("All", "Asian", "Black", "Hispanic", "Native American", "White") %>% sort()
-#df_names = colnames(strat_cv_df) #need to match data input and colnames
+df_names = c("county_class", "inactive_per", "obesity_rate", "food_per", "drink_per", "smoke", "std")
 ```
 
 ```{r}
@@ -917,21 +946,21 @@ server = function(input,output){
   
   #convert inputs to dataframe
   shiny_df <- reactive({
-    new_table = data.frame((matrix(nrow = 1, data = x_value())))
+    new_table = data.frame((matrix(nrow = 1, data = x_value()))) %>% retype()
     colnames(new_table) = df_names #get appropriate colnames
     new_table
   })
   
   #Get predictions
   shiny_pred <- reactive({
-    predict(final_gam_model, newdata = shiny_df()) #test prediction syntax for gam
+    predict(final_gam_model, newdata = shiny_df()) %>% round(2)
   })
   
   #Text output
   pred_reactive <- eventReactive(input$go, #put the expected YPLL text together
     {
       paste("The expected county YPLL is:", shiny_pred(), "Years")
-      })
+  })
   
   output$text1 <- renderUI({pred_reactive()})
   
@@ -940,7 +969,7 @@ server = function(input,output){
     
     demo_map(Race_Type = input$demo)
   }, 
-  height = 400, width = 900)
+  height = 650, width = 1100)
   
 }
 ```
