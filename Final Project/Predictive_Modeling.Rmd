@@ -145,7 +145,7 @@ sub_lower_lim = 50000
 
 reliable_data = reliable_data %>%
   mutate(county_class = 
-           case_when(Population < (sub_upper_lim) & Population >= (sub_lower_lim) ~ "Suburban",
+           case_when(Population < (sub_upper_lim) & Population > (sub_lower_lim) ~ "Suburban",
                      Population >= (sub_upper_lim) ~ "Urban", 
                      TRUE ~ "Rural")) #%>% select(State, County, county_class, Population)
 ```
@@ -758,7 +758,6 @@ gam_model = gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_pe
 summary(gam_model)
 ```
 
-
 ### Tree Based Model
 
 ```{r}
@@ -869,9 +868,9 @@ Interesting is that population instead of county_class outperforms very slightly
 
 
 #HELPPP: I tested models using df w p parameters and the df was filtered w na.omit on all p. But i settled on a model with p-4 parameters, so can I refilter my dataframe so it only na.omit on those p-4 parameters? (difference of ~80 obs)? Discuss using county class rather than population? How can I do variable importance plot with gam?
-```{r}
-library(hablar)
 
+```{r}
+#Fitted vs Residuals for final model
 #Final model df
 final_df = reliable_data %>%
   group_by(State, County) %>%
@@ -895,30 +894,40 @@ final_df = reliable_data %>%
             Population) %>%
   na.omit()
 
-#Finalized model
+#Train/Test set
+set.seed(1)
+parts = createDataPartition(final_df$YPLL, p = .7, list = F) #70/30 split
+train = county_num_df[parts, ]
+test = county_num_df[-parts, ]
+
+plot_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
+                         as.factor(county_class), #alternative: s(Population)
+                      data = train, 
+                      method = "REML")
+
+y_actual = test$YPLL
+y_fitted = predict(plot_gam_model, test)
+
+data.frame(y_actual, y_fitted) %>%
+  ggplot(., aes(x = y_actual, y = y_fitted)) +
+  geom_point(alpha = 0.5) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  labs(x = "Actual", y = "Predicted")
+```
+
+```{r}
+#Finalized shiny model
 final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
                          as.factor(county_class), #alternative: s(Population)
                       data = final_df, 
                       method = "REML")
 
 summary(final_gam_model)
-
-# Test the df read in for predict in shiny
-# test_var = c(35.2, 25.11, "Urban", 14.44, 15.11, 40, 500)
-# 
-# test_names = c("inactive_per", "obesity_rate", "county_class", "food_per", "drink_per", "smoke", "std")
-# 
-# test_df = data.frame(matrix(nrow = 1, test_var)) %>% 
-#   retype() #smart guess of appropriate classes
-# 
-# colnames(test_df) = test_names
-# 
-# predict(final_gam_model, newdata = test_df)
 ```
 
 # Conclusions
 
-# To Do: (1) Get year labels on all features, (2) Shiny App, (3) Formalize EDA, Methods and Conclusions, (4) Publish Shiny 
+# To Do: (1) Shiny App, (2) Formalize EDA, Methods and Conclusions, (3) Publish Shiny 
 
 For EDA, show YPLL map distribution then show relationship with predictors (e.g., smoke, food) then show relationship between predictors to demonstrate some independence but also some correlation (especially between the food predictors). Then go to methods practices
 
@@ -928,7 +937,8 @@ For EDA, show YPLL map distribution then show relationship with predictors (e.g.
 ```{r}
 library(shiny)
 library(shinyBS)
-library(bslib)
+library(bslib) #theme
+library(hablar) #retype()
 
 county_options = c("Urban", "Suburban", "Rural") %>% sort()
 demo_options = c("All", "Asian", "Black", "Hispanic", "Native American", "White") %>% sort()
