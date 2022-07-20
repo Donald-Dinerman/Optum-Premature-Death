@@ -1,0 +1,331 @@
+---
+title: "0713-Lecture"
+output: html_document
+date: '2022-07-13'
+---
+
+# Multinomial logistic regression and multilevel models
+
+## Example: NFL Expected Points
+
+What does football __play-by-play__ data look like? Each row is a play with contextual information:
+
+- __Possession team:__ team with the ball, on offense (opposing team is on defense)
+
+- __Down:__ 4 downs to advance the ball 10 (or more) yards
+
+  - New set of downs, else turnover to defense
+  
+- __Yards to go:__ distance in yards to advance 
+
+- __Yard line:__ distance in yards away from opponent's endzone (100 to 0) - the field position
+
+- __Time remaining:__ seconds remaining in game, each game is 3600 seconds long
+
+  - 4 quarters, halftime in between, followed by a potential overtime (900 seconds)
+
+## Example: NFL Expected Points
+
+__Drive:__ a series of plays, changes with possession and the types of scoring events:
+
+- __No Score:__ 0 points - turnover the ball or half/game ends
+
+- __Field Goal:__ 3 points - kick through opponent's goal post
+
+- __Touchdown:__ 7 points - enter opponent's end zone
+
+- __Safety:__ 2 points for opponent - tackled in own endzone
+
+__Next Score:__ type of next score (current drive or future drives) with respect to possession team
+
+- For: Touchdown (7), Field Goal (3), Safety (2)
+
+- Against: -Touchdown (-7), -Field Goal (-3), -Safety (-2)
+
+- No Score
+
+_Note: treating point-after-touchdown attempts (PATs) separately_
+
+## Example: NFL Expected Points
+
+__Expected Points:__ Measure the value of play in terms of $\mathbb{E}[\text{points of next scoring play}]$
+
+- i.e., historically, how many points have teams scored when in similar situations?
+  
+__Response__: $Y \in$ {Touchdown (7), Field Goal (3), Safety (2), No Score (0), -Safety (-2), -Field Goal (-3), -Touchdown (-7)} 
+
+__Explanatory variables__: $\mathbf{X} =$ {down, yards to go, yard line, ...} 
+
+Want to __estimate the probabilities__ of each scoring event to compute expected points:
+
+- Outcome probabilities: $P(Y = y |  \mathbf{X})$
+
+- Expected Points $= E(Y| \mathbf{X}) = \sum_{y \in Y} y \cdot P(Y=y|\mathbf{X})$
+
+_How do we model more than two categories???_
+
+## Review: logistic regression
+
+Response variable $Y$ has two possible values: 1 or 0, we estimate the probability
+
+$$
+p(x) = P(Y = 1 | X = x)
+$$
+
+Assuming that we are dealing with two classes, the possible observed values for $Y$ are 0 and 1, 
+$$
+Y \vert x \sim {\rm Binomial}(n=1,p=\mathbb{E}[Y\vert x]) = \text{Bernoulli}(p = \mathbb{E}[Y\vert x])
+$$
+
+To limit the regression betweewn $[0, 1]$: use the __logit__ function, aka the __log-odds ratio__
+
+$$
+\text{logit}(p(x)) = \log \left[ \frac{p(x)}{1 - p(x)} \right] = \beta_0 + \beta_1 x_1 + \cdots + \beta_p x_p
+$$
+
+meaning
+
+$$p(x) = \frac{e^{\beta_0 + \beta_1 x_1 + \cdots + \beta_p x_p}}{1 + e^{\beta_0 + \beta_1 x_1 + \cdots + \beta_p x_p}}$$
+
+## [Multinomial logistic regression](https://en.wikipedia.org/wiki/Multinomial_logistic_regression)
+
+We can extend this to $K$ classes (via the [softmax function](https://en.wikipedia.org/wiki/Softmax_function)):
+
+$$P(Y=k^* \mid X=x)=\frac{e^{\beta_{0 k^*}+\beta_{1 k^*} x_{1}+\cdots+\beta_{p k^*} x_{p}}}{\sum_{k=1}^{K} e^{\beta_{0 k}+\beta_{1 k} x_{1}+\cdots+\beta_{p k} x_{p}}}$$
+
+We only estimate coefficients for $K - 1$ classes __relative to reference class__
+
+For example, let $K$ be the reference then we use $K - 1$ logit transformations
+  
+  - Use $\boldsymbol{\beta}$ for vector of coefficients and $\mathbf{X}$ for matrix of predictors
+  
+$$\begin{array}{c}
+\log \Big( \frac{P(Y =1 \mid \mathbf{X})}{P(Y=K \mid \mathbf{X})} \Big) = \boldsymbol{\beta}_{1} \cdot \mathbf{X}  \\
+\log \Big( \frac{P(Y=2 \mid \mathbf{X})}{P(Y=K \mid \mathbf{X})} \Big) =\boldsymbol{\beta}_{2} \cdot \mathbf{X} \\
+\log \Big( \frac{P(Y=K-1 \mid \mathbf{X})}{P(Y=K \mid \mathbf{X})} \Big) =\boldsymbol{\beta}_{K-1} \cdot \mathbf{X}
+\end{array}$$
+
+## [Multinomial logistic regression](https://en.wikipedia.org/wiki/Multinomial_logistic_regression) for next score
+
+$Y \in$ {Touchdown (7), Field Goal (3), Safety (2), No Score (0), -Safety (-2), -Field Goal (-3), -Touchdown (-7)}
+
+$\mathbf{X} =$ {down, yards to go, yard line, ...} 
+
+Model is specified with __six logit transformations__ relative to __No Score__:
+
+$$\begin{array}{c}
+\log \left(\frac{P(Y=\text { Touchdown } \mid \mathbf{X})}{P(Y=\text { No Score } \mid \mathbf{X})}\right)=\mathbf{X} \cdot \boldsymbol{\beta}_{\text {Touchdown }} \\
+\log \left(\frac{P(Y=\text { Field Goal } \mid \mathbf{X})}{P(Y=\text { No Score } \mid \mathbf{X})}\right)=\mathbf{X} \cdot \boldsymbol{\beta}_{\text {Field Goal }}, \\
+\vdots & \\ \log \left(\frac{P(Y=-\text { Touchdown } \mid \mathbf{X})}{P(Y=\text { No Score } \mid \mathbf{X})}\right)=\mathbf{X} \cdot \boldsymbol{\beta}_{-\text {Touchdown }},
+\end{array}$$
+
+- Model is generating probabilities, agnostic of value associated with each next score type
+
+- Fit multinomial logistic regression model in `R` with `nnet` package
+
+### NFL play-by-play data (2010 to 2020)
+
+Initialized NFL play-by-play dataset with next score in half for each play
+
+- Followed steps in [script by Ben Baldwin](https://github.com/nflverse/nflfastR-data/blob/master/models/model_data.R) (which copies my steps [here](https://github.com/ryurko/nflscrapR-models/blob/master/R/init_models/init_ep_fg_models.R))
+
+```{r load-nfl-ep-data, warning = FALSE, message = FALSE}
+library(tidyverse)
+nfl_ep_model_data <- read_rds(url("http://www.stat.cmu.edu/cmsac/sure/2021/materials/data/model_pbp_data.rds"))
+
+nfl_ep_model_data <- nfl_ep_model_data %>%
+  mutate(Next_Score_Half = fct_relevel(Next_Score_Half, "No_Score"),
+         # log transform of yards to go and indicator for two minute warning:
+         log_ydstogo = log(ydstogo),
+         # Changing down into a factor variable: 
+         down = factor(down))
+
+```
+
+How to fit the model? 
+
+```{r, eval = FALSE}
+init_ep_model <- multinom(Next_Score_Half ~ half_seconds_remaining + yardline_100 + down + log_ydstogo + log_ydstogo*down + yardline_100*down, 
+                          data = nfl_ep_model_data, maxit = 300)
+```
+
+_What does the `summary()` function return?_
+
+### Leave-one-season-out cross-validation
+
+```{r loso-cv, eval = FALSE, warning = FALSE, message = FALSE}
+library(nnet)
+init_loso_cv_preds <- 
+  map_dfr(unique(nfl_ep_model_data$season), 
+          function(x) {
+            # Separate test and training data:
+            test_data <- nfl_ep_model_data %>% filter(season == x)
+            train_data <- nfl_ep_model_data %>% filter(season != x)
+            
+            # Fit multinomial logistic regression model:
+            ep_model <- 
+              multinom(Next_Score_Half ~ half_seconds_remaining + yardline_100 + down + log_ydstogo + log_ydstogo*down + yardline_100*down, data = train_data, maxit = 300)
+            
+            # Return dataset of class probabilities:
+            predict(ep_model, newdata = test_data, type = "probs") %>% #<<
+              as_tibble() %>%
+              mutate(Next_Score_Half = test_data$Next_Score_Half,
+                     season = x)
+              })
+
+```
+
+```{r load-loso-cv-preds, echo = FALSE}
+init_loso_cv_preds <- 
+  read_csv("http://www.stat.cmu.edu/cmsac/sure/2021/materials/data/init_nfl_ep_loso_cv_preds.csv")
+```
+
+### Calibration results for each scoring event
+  
+```{r, warning = FALSE, message = FALSE}
+ep_cv_loso_calibration_results <- init_loso_cv_preds %>%
+  pivot_longer(No_Score:Touchdown,
+               names_to = "next_score_type",
+               values_to = "pred_prob") %>%
+  mutate(bin_pred_prob = round(pred_prob / 0.05) * .05) %>%
+  group_by(next_score_type, bin_pred_prob) %>%
+  summarize(n_plays = n(), 
+            n_scoring_event = length(which(Next_Score_Half == next_score_type)),
+            bin_actual_prob = n_scoring_event / n_plays,
+            bin_se = sqrt((bin_actual_prob * (1 - bin_actual_prob)) / n_plays)) %>% #<<
+  ungroup() %>%
+  mutate(bin_upper = pmin(bin_actual_prob + 2 * bin_se, 1), #<<
+         bin_lower = pmax(bin_actual_prob - 2 * bin_se, 0)) #<<
+```
+
+### Calibration results for each scoring event
+
+```{r first-cal-plot, eval = FALSE}
+ep_cv_loso_calibration_results %>%
+  mutate(next_score_type = fct_relevel(next_score_type, "Opp_Safety", "Opp_Field_Goal", 
+                                       "Opp_Touchdown", "No_Score", "Safety", "Field_Goal", "Touchdown"),
+  next_score_type = fct_recode(next_score_type, "-Field Goal (-3)" = "Opp_Field_Goal", "-Safety (-2)" = "Opp_Safety", "-Touchdown (-7)" = "Opp_Touchdown",
+                               "Field Goal (3)" = "Field_Goal", "No Score (0)" = "No_Score",
+                               "Touchdown (7)" = "Touchdown", "Safety (2)" = "Safety")) %>%
+  ggplot(aes(x = bin_pred_prob, y = bin_actual_prob)) +
+  geom_abline(slope = 1, intercept = 0, color = "black", linetype = "dashed") +
+  geom_smooth(se = FALSE) + 
+  geom_point(aes(size = n_plays)) +
+  geom_errorbar(aes(ymin = bin_lower, ymax = bin_upper)) + #coord_equal() +   
+  scale_x_continuous(limits = c(0,1)) + 
+  scale_y_continuous(limits = c(0,1)) + 
+  labs(size = "Number of plays", x = "Estimated next score probability", 
+       y = "Observed next score probability") + 
+  theme_bw() + 
+  theme(strip.background = element_blank(), 
+        axis.text.x = element_text(angle = 90), 
+        legend.position = c(1, .05), legend.justification = c(1, 0)) +
+  facet_wrap(~ next_score_type, ncol = 4)
+```
+
+## How do we evaluate players?
+
+__Expected points added (EPA)__: change in expected points between plays
+
+Goal: divide credit between players involved in a play, i.e. who deserves what portion of EPA?
+
+Load dataset of 2021 passing plays:
+
+```{r, warning = FALSE, message = FALSE}
+nfl_passing_plays <- 
+  read_csv("http://www.stat.cmu.edu/cmsac/sure/2022/materials/data/sports/eda_projects/nfl_passing_plays_2021.csv") %>%
+  # Only keep rows with passer and receiver information known:
+  filter(!is.na(passer_player_id), !is.na(receiver_player_id), !is.na(epa)) %>%
+  # Combine passer and receiver unique IDs:
+  mutate(passer_name_id = paste0(passer_player_name, ":", passer_player_id),
+         receiver_name_id = paste0(receiver_player_name, ":", receiver_player_id))
+```
+
+Data displays __group structure__ and __different levels of variation within groups__
+
+- e.g., quarterbacks have more passing attempts than receivers have targets
+
+Every play is a __repeated measure of performance__
+
+- i.e., the plays (observations) are NOT independent
+
+### Mixed-effects / random-effects / multilevel / hierarchical models
+
+Example of a __varying-intercept__ model:
+
+$$EPA_{i} \sim Normal(Q_{q[i]} + C_{c[i]} + X_i \cdot \beta,\ \sigma_{EPA}^2), \text{ for}\ i\ =\ 1,\dots,n \text{  plays}$$
+
+__Groups are given a model__ - treating the levels of groups as similar to one another with __partial pooling__
+
+$$Q_q \sim Normal(\mu_{Q},\ \sigma_{Q}^2),\text{ for } q = 1,\dots, \text{ number of QBs}, \\
+C_c \sim Normal(\mu_{C},\ \sigma_{C}^2),\text{ for } c = 1,\dots, \text{ number of receivers}$$
+
+Each individual estimate (e.g., $Q_q$) is pulled toward it's group mean (e.g., $\mu_Q$)
+
+- i.e., QBs and receivers involved in fewer plays will be pulled closer to their overall group averages as compared to those involved in more plays
+
+- serves as a form of __regularization__ of coefficient estimates
+
+- $Q_q$ and $C_c$ are __random effects__, while $\beta$ are __fixed effects__ 
+
+  - but these are confusing terms that [no one agrees on](https://statmodeling.stat.columbia.edu/2005/01/25/why_i_dont_use/)
+
+### Fitting multilevel models with [`lme4`](https://cran.r-project.org/web/packages/lme4/vignettes/lmer.pdf)
+
+Include variables as usual but now introduce new term for varying intercepts: `(1|GROUP)`
+
+```{r, warning = FALSE, message = FALSE}
+library(lme4)
+passing_lmer <- lmer(epa ~ shotgun + air_yards + (1|passer_name_id) + (1|receiver_name_id), #<<
+                     data = nfl_passing_plays)
+summary(passing_lmer)
+```
+
+### Variance partition coefficients and intraclass correlations
+
+We partition the variance in the response between the groupings in the data
+
+Want to know the proportion of variance attributable to __variation within groups__ compared to __between groups__
+
+Can compute the variance partition coefficient (VPC) or intraclass correlation (ICC):
+
+$$\hat{\rho}_Q = \frac{\text{Between QB variability} }{ \text{Total variability}} = \frac{\hat{\sigma}^2_Q}{\hat{\sigma}^2_Q + \hat{\sigma}^2_C + \hat{\sigma}^2_{EPA}}$$
+
+- Closer to 0: responses are more independent, the multilevel model structure is not as relevant
+
+- Closer to 1: repeated observations provide no new information, multilevel group structure is important
+
+```{r}
+VarCorr(passing_lmer) %>% as_tibble() %>% mutate(icc = vcov / sum(vcov)) %>% dplyr::select(grp, icc)
+```
+
+### Exploring the player-level effects using [`merTools`](https://cran.r-project.org/web/packages/merTools/vignettes/merToolsIntro.html)
+
+Compare random effects with uncertainty via [parametric bootstrapping](https://cran.r-project.org/web/packages/merTools/vignettes/Using_predictInterval.html)
+
+```{r, fig.align='center', fig.width = 10, fig.height=5}
+library(merTools)
+player_effects <- REsim(passing_lmer)
+plotREsim(player_effects)
+```
+
+### Best and worst players? (by effects)
+
+```{r lmer-re, eval = FALSE}
+player_effects %>%
+  as_tibble() %>%
+  group_by(groupFctr) %>%
+  arrange(desc(mean)) %>%
+  slice(1:5, (n() - 4):n()) %>%
+  ggplot(aes(x = reorder(groupID, mean))) +
+  geom_point(aes(y = mean)) +
+  geom_errorbar(aes(ymin = mean - 2 * sd,
+                    ymax = mean + 2 * sd)) +
+  facet_wrap(~groupFctr, ncol = 1, scales = "free_y") +
+  geom_vline(xintercept = 0, linetype = "dashed",
+             color = "red") +
+  coord_flip() +
+  theme_bw()
+```
+
+
