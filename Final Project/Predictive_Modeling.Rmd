@@ -858,6 +858,9 @@ holdout_predictions %>%
   stat_summary(fun.data = mean_se, geom = "errorbar",
                color = "red") +
   labs(y = "RMSE", x = "Model Type")
+
+#Note use fct_recode to change labels easy in dplyr
+#e.g., fct_recode(next_score_type, "-Field Goal (-3)" = "Opp_Field_Goal")
 ```
 
 Simple gam (7 features) performs outperforms gam with all 11 features within intervals. For simplicity and performance in potential Shiny App interface simple gam seems to be the way to go.
@@ -1053,10 +1056,3 @@ server = function(input,output){
 #run app
 shinyApp(ui = ui, server = server)
 ```
-
-
-
-
-
-
-
