@@ -1,8 +1,315 @@
 ---
-title: "Report"
+title: "Report: Predicting Premature Deaths"
 output: html_document
 date: '2022-06-29'
 ---
+
+# Question: use geom_smooth? if so lm method or gam?, what to add for results section?
+```{r setup, include=FALSE}
+#Going to run all code above HTML, save output as objects and then call objects in html code chunks
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+```
+
+```{r}
+#load libraries
+library(tidyverse)
+library(readxl)
+library(usmap)
+library(ggplot2)
+library(glmnet)
+library(broom)
+library(caret)
+library(mgcv)
+```
+
+```{r}
+#load data
+data = read_xlsx("Data/CountyHealthRankingsData2022.xlsx", 4, skip = 1)
+
+add_data = read_xlsx("Data/CountyHealthRankingsData2022.xlsx", 6, skip = 1)
+```
+
+```{r}
+#process data
+new_data = select(data, -contains(c("CI", "Quartile"), ignore.case = F))
+new_add_data = select(add_data, -contains(c("CI", "Quartile"), ignore.case = F))
+comb_data = inner_join(new_data, new_add_data, by = c("FIPS", "State", "County"))
+
+reliable_data = comb_data %>%
+  mutate(na_id = as.numeric(is.na(comb_data$Unreliable...4))) %>% #binary to is.na
+  filter(na_id == 1) #keep only rows w NA (reliable rows)
+
+sub_upper_lim = 200000
+sub_lower_lim = 50000
+
+reliable_data = reliable_data %>%
+  mutate(county_class = 
+           case_when(Population < (sub_upper_lim) & Population > (sub_lower_lim) ~ "Suburban",
+                     Population >= (sub_upper_lim) ~ "Urban", 
+                     TRUE ~ "Rural")) #%>% select(State, County, county_class, Population)
+```
+
+```{r}
+#State
+state_df = reliable_data %>%
+  group_by(State) %>%
+  dplyr::slice(1) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy')
+
+#YPLL (low values good)
+ypll_map = plot_usmap(data = state_df, values = "YPLL", color = "black") + 
+  scale_fill_continuous(name = "YPLL", low = "white", high = "red", 
+                        label = scales::comma, limits = c(5000,11500)) + 
+  theme(legend.position = "right") +
+  labs(title = "")
+```
+
+```{r}
+county_pred_df = reliable_data %>%
+  group_by(State, County) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
+  summarise(
+            #Alcohol/Drug
+            drink_per = `% Excessive Drinking`, dui_per = `% Driving Deaths with Alcohol Involvement`, 
+            #food/exercise
+            food_index = `Food Environment Index`, inactive_per = `% Physically Inactive`, 
+            exercise_access_per = `% With Access to Exercise Opportunities`, food_per = `% Food Insecure`, 
+            healthy_access_per = `% Limited Access to Healthy Foods`, obesity_rate = `% Adults with Obesity`,
+            #tobacco
+            smoke = `% Smokers`,
+            #sex
+            std = `Chlamydia Rate`,
+            #response
+            YPLL,
+            #Cluster
+            county_class = as.factor(county_class),
+            #Population
+            Population) %>%
+  na.omit()
+
+ypll_smoke = ggplot(county_pred_df, aes(y = YPLL, x = smoke)) +
+  geom_point(alpha = 0.25) +
+  theme_bw() +
+  geom_smooth(se = F) +
+  labs(title = "YPLL Increases As Smoking Prevelance Increases", y = "Years of Potential Life Lost (YPLL)", x = "% Smokers")
+
+ypll_drink = ggplot(county_pred_df, aes(y = YPLL, x = drink_per)) +
+  geom_point(alpha = 0.25) +
+  theme_bw() +
+  geom_smooth(se = F) +
+  labs(title = "YPLL Decreases As Smoking Prevelance Increases", y = "Years of Potential Life Lost (YPLL)", x = "% Excessive Drinking")
+
+ypll_food = ggplot(county_pred_df, aes(y = YPLL, x = food_per)) +
+  geom_point(alpha = 0.25) +
+  theme_bw() +
+  geom_smooth(se = F) +
+  labs(title = "YPLL Increases As Food Insecurity Increases", y = "Years of Potential Life Lost (YPLL)", x = "% Food Insecure")
+
+ypll_obesity = ggplot(county_pred_df, aes(y = YPLL, x = obesity_rate)) +
+  geom_point(alpha = 0.25) +
+  theme_bw() +
+  geom_smooth(se = F) +
+  labs(title = "YPLL Increases As Obesity Levels Increases", y = "Years of Potential Life Lost (YPLL)", x = "% Adults with Obesity")
+
+ypll_countyclass = ggplot(county_pred_df, aes(y = YPLL, x = county_class)) +
+  geom_violin() +
+  geom_boxplot(width = .2) +
+  scale_x_discrete(limits = c("Urban", "Suburban", "Rural")) +
+  theme_bw() +
+  labs(title = "YPLL Variability Increase as County Population Decreases", y = "Years of Potential Life Lost (YPLL)", x = "County Type")
+```
+
+```{r}
+food_obesity = ggplot(county_pred_df, aes(y = food_per, x = obesity_rate)) +
+  geom_point() +
+  geom_smooth(se = F) +
+  theme_bw() +
+  labs(title = "Positive Relationship Between Obesity and Food Insecurity", y = "% Food Insecure", x = "% Adults with Obesity")
+
+food_drink = ggplot(county_pred_df, aes(y = food_per, x = drink_per)) +
+  geom_point() +
+  geom_smooth(se = F) +
+  theme_bw() +
+  labs(title = "Inverse Relationship Between Food Insecurity and Excessive Drinking", y = "% Food Insecure", x = "% Excessive Drinking")
+
+smoke_dui = ggplot(county_pred_df, aes(y = smoke, x = dui_per)) +
+  geom_point() +
+  geom_smooth(se = F) +
+  theme_bw() +
+  labs(title = "No Relationship Between Smoking and Alcohol Driving Deaths", y = "% Smokers", 
+       x = "% Driving Deaths with Alcohol Involvement")
+```
+
+```{r}
+#Regularization Modeling
+county_num_df = county_pred_df[ ,!sapply(county_pred_df, is.character)] %>%
+  relocate(YPLL, .before = drink_per)
+
+dummy_df = county_num_df %>%
+  mutate(urban = ifelse(county_class == 'Urban', 1, 0),
+         suburban = ifelse(county_class == 'Suburban', 1, 0),
+         rural = ifelse(county_class == 'Rural', 1, 0)) %>%
+  select(-county_class)
+
+set.seed(1)
+cv_df <- dummy_df %>% mutate(test_fold = sample(rep(1:5, length.out = n())))
+
+holdout_predictions <- 
+  map_dfr(unique(cv_df$test_fold), 
+          
+          function(holdout) {
+            # Separate test and training data:
+            test_data <- cv_df %>% filter(test_fold == holdout)
+            train_data <- cv_df %>% filter(test_fold != holdout)
+            
+            # Repeat for matrices
+            test_x <- as.matrix(dplyr::select(test_data, -YPLL))
+            train_x <- as.matrix(dplyr::select(train_data, -YPLL))
+
+            # Train models:
+            lm_model <- lm(YPLL ~ ., data = train_data)
+            ridge_model <- cv.glmnet(train_x, train_data$YPLL, alpha = 0)
+            lasso_model <- cv.glmnet(train_x, train_data$YPLL, alpha = 1)
+            en_model <- cv.glmnet(train_x, train_data$YPLL, alpha = .5)
+
+            # Return tibble of holdout results:
+            tibble(lm_preds = predict(lm_model, newdata = test_data), #linear model
+                   ridge_preds = as.numeric(predict(ridge_model, newx = test_x)), #ridge
+                   lasso_preds = as.numeric(predict(lasso_model, newx = test_x)), #lasso
+                   en_preds = as.numeric(predict(en_model, newx = test_x)), #elastic net
+                   test_actual = test_data$YPLL, test_fold = holdout) 
+          })
+
+reg_cv = holdout_predictions %>%
+  pivot_longer(lm_preds:en_preds, 
+               names_to = "type", values_to = "test_preds") %>%
+  group_by(type, test_fold) %>%
+  summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>% 
+  mutate(type = recode(type, 'en_preds' = 'Elastic Net' , 'lasso_preds' =  'Lasso','ridge_preds' = 'Ridge', 'lm_preds' = 'Linear')) %>%
+  ggplot(aes(x = type, y = rmse)) + 
+  geom_point() + 
+  scale_x_discrete(limits = c("Linear", "Ridge", "Lasso", "Elastic Net")) + 
+  theme_bw() +
+  stat_summary(fun = mean, geom = "point", 
+               color = "red") + 
+  stat_summary(fun.data = mean_se, geom = "errorbar",
+               color = "red") +
+  labs(y = "RMSE", x = "Model Type", title = "Linear Regression Outperforms Regularization Techniques")
+```
+
+```{r}
+#GAM Modeling
+
+#stratified k fold
+strat_cv = function(k = 5, seed = 123){
+  
+  set.seed(seed)
+  state_list = unique(county_pred_df$state)
+  strat_df = data.frame()
+
+  for (i in 1:length(state_list)){
+    df = filter(county_pred_df, state == state_list[i])
+    new_df = mutate(df, test_fold = sample(1:k, replace = T, size = nrow(df)))
+    strat_df = rbind(strat_df, new_df)
+  }
+  
+  strat_df %>% ungroup() %>% select(-c(state, County))
+}
+
+strat_cv_df = strat_cv(5)
+
+#Calculate holdout predictions
+holdout_predictions <- 
+  map_dfr(unique(strat_cv_df$test_fold), 
+          
+          function(holdout) {
+            # Separate test and training data:
+            test_data <- strat_cv_df %>% filter(test_fold == holdout)
+            train_data <- strat_cv_df %>% filter(test_fold != holdout)
+          
+            # Train models:
+            lm_model <- lm(YPLL ~ ., data = train_data)
+            
+            gam_model <- gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_per) + s(exercise_access_per) + s(food_per) +
+                            s(healthy_access_per) + s(obesity_rate) + s(smoke) + s(std) + as.factor(county_class), 
+                            data = train_data, 
+                            method = "REML")
+
+            simple_gam_model <-  gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
+                                     as.factor(county_class),
+                                     data = train_data, 
+                                     method = "REML")
+
+            # Return tibble of holdout results:
+            tibble(lm_preds = predict(lm_model, newdata = test_data), #linear model
+                   gam_preds = predict(gam_model, newdata = test_data), #gam model
+                   simple_gam_preds = predict(simple_gam_model, newdata = test_data),
+                   test_actual = test_data$YPLL, test_fold = holdout)
+          })
+
+gam_cv = holdout_predictions %>%
+  pivot_longer(lm_preds:simple_gam_preds, 
+               names_to = "type", values_to = "test_preds") %>%
+  group_by(type, test_fold) %>%
+  summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>%
+  mutate(type = recode(type, 'gam_preds' = 'Full GAM' , 'simple_gam_preds' =  'Simple GAM', 'lm_preds' = 'Linear')) %>%
+  ggplot(aes(x = type, y = rmse)) + 
+  geom_point() + 
+  scale_x_discrete(limits = c("Simple GAM", "Full GAM", "Linear")) + 
+  theme_bw() +
+  stat_summary(fun = mean, geom = "point", 
+               color = "red") + 
+  stat_summary(fun.data = mean_se, geom = "errorbar",
+               color = "red") +
+  labs(y = "RMSE", x = "Model Type", title = "Simple GAM Outperforms Full GAM and Linear Models")
+```
+
+```{r}
+final_df = reliable_data %>%
+  group_by(State, County) %>%
+  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
+  summarise(
+            #Alcohol/Drug
+            drink_per = `% Excessive Drinking`, 
+            #food/exercise
+            inactive_per = `% Physically Inactive`, 
+            food_per = `% Food Insecure`, 
+            obesity_rate = `% Adults with Obesity`,
+            #tobacco
+            smoke = `% Smokers`,
+            #sex
+            std = `Chlamydia Rate`,
+            #response
+            YPLL,
+            #Cluster
+            county_class = as.factor(county_class),
+            #Population
+            Population) %>%
+  na.omit()
+
+#Train/Test set
+set.seed(1)
+parts = createDataPartition(final_df$YPLL, p = .7, list = F) #70/30 split
+train = county_num_df[parts, ]
+test = county_num_df[-parts, ]
+
+plot_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
+                         as.factor(county_class), #alternative: s(Population)
+                      data = train, 
+                      method = "REML")
+
+y_actual = test$YPLL
+y_fitted = predict(plot_gam_model, test)
+
+fin_mod = data.frame(y_actual, y_fitted) %>%
+  ggplot(., aes(x = y_actual, y = y_fitted)) +
+  geom_point(alpha = 0.25) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  coord_equal() +
+  theme_bw() +
+  labs(x = "Actual", y = "Predicted")
+```
+
 
 # Premature Death Prediction Model Using Health Behavior Data
 
@@ -24,7 +331,7 @@ Health behaviors are a leading cause of illness and death in the United states. 
 
 ## Data
 
-Health behaviors are actions taken by individuals that can affect their health. In terms of health behaviors, the following categories were accounted for: Alcohol/Drug Use, Diet/Exercise, Tobacco Use and Sexual Activity. Below we provide descriptions of each variable within every health behavior category.
+Health behaviors are actions taken by individuals that can affect their health. In terms of health behaviors, the following categories were accounted for: Alcohol, Diet/Exercise, Tobacco Use and Sexual Activity. Below we provide descriptions of each variable within every health behavior category.
 
 ### Data Description
 
@@ -34,15 +341,11 @@ Health behaviors are actions taken by individuals that can affect their health. 
 
 **Predictors**
   
-*Alcohol and Drug Use* 
+*Alcohol* 
 
 - Excessive Drinking: Percentage of adults reporting binge or heavy drinking per 100,000 population (2019)
   
 - Alcohol-Impaired Driving Deaths: Percentage of driving deaths with alcohol involvement (2016-2020)
-  
-- Drug Overdose Deaths: Number of drug poisoning deaths per 100,000 population (2018-2020)
-  
-- Motor Vehicle Crash Deaths: Number of motor vehicle crash deaths per 100,000 population (2014-2020)
 
 *Diet and Exercise*
 
@@ -64,7 +367,7 @@ Health behaviors are actions taken by individuals that can affect their health. 
 
 *Sexual Activity* 
 
-- Sexually Transmitted Infections: Number of newly diagnosed chlamydia cases per 100,000 population (2019)
+- Sexually Transmitted Infections (STI): Number of newly diagnosed chlamydia cases per 100,000 population (2019)
 
 *Population*
 
@@ -72,24 +375,59 @@ Health behaviors are actions taken by individuals that can affect their health. 
 
 ### Exploratory Data Analysis
 
+We first started by exploring the geographical distribution of our response variable, YPLL, using choropleths. We developed a comprehensive function that outputs these YPLL maps reactively based on demographics and geographic region but for the purposes of the report we've only included the YPLL distribution across the entire United States.
+
 ```{r}
 #YPLL Map
+ypll_map
 ```
+
+Next we modeled our predictors' relationships with the response variable. To do this comprehensively yet efficiently, we created pairs plots and a correlation matrix. For the purposes of this report, we've included only some scatter plots between our response and predictors that we believe captures the most significant relationships. Of our explanatory variables that demonstrated a significant relationship with YPLL, their relationship was largely linear with some curvature at the ends.
 
 ```{r}
 #YPLL vs Predictors
+ypll_drink
 ```
 
 ```{r}
-#Predictors vs Predictors
+ypll_smoke
 ```
 
+```{r}
+ypll_food
+```
+
+```{r}
+ypll_obesity
+```
+
+Given that county class is our only categorical predictor, we created a violin plot overlayed on top of a boxplot to model the relationship between county types and YPLL. Interestingly, we found that the mean YPLL and YPLL variability increases as population decreases. The mean increasing could be potentially due to poorer access to high quality healthcare in more rural areas versus the city or other factors. However, the high degree of variation in the YPLL could be explained by how the statistic is derived. YPLL measures years of potential lives lost per 100k people. Therefore in counties where their total population is 10k, their YPLL statistic will be multiplied by a factor of 10. Therefore, in smaller populations we are more likely to see high YPLL variability 'technically' at both ends (but from this plot we really only see that it is heavily skewed right).
+
+```{r}
+#YPLL vs Predictors colored by county class
+ypll_countyclass #violin overlay on box plot, variability limitation in YPLL calculation for low pop counties
+```
+
+To test for collinearity we plotted the predictors against each other. We found that the diet/exercise variables were positively correlated with each other which could potentially complicate capturing inference from our models. We also saw that excesive drinking shared an inverse relationship with food insecurity. On the other hand, alcohol-impaired driving deaths and smoking were independent of each other as their scatterplot resembled a random scatter with zero slope.
+
+```{r}
+#Predictors vs Predictors (diet/diet)
+food_obesity
+```
+
+```{r}
+#Predictors vs Predictors (food/drink)
+food_drink
+```
+
+```{r}
+#Predictors vs Predictors (smoke/dui)
+smoke_dui
+```
 
 ## Methods
 
-State the considered methods and motivate why they were used, why they were appropriate or more appropriate than other methods
-
-Given the relatively linear relationships discovered in our EDA, we first explored linear regression, general additive models (GAM), and regularization techniques. We then explored a tree based modeling approach using gradient boosted machines (GBM).
+Given the relatively linear relationships discovered in our EDA, we first explored linear regression, general additive models (GAM), and regularization techniques.
 
 ### Regularization Techniques
 
@@ -97,28 +435,32 @@ We first explored the performance of linear regression model using all 13 featur
 
 ```{r}
 #CV Plot
+reg_cv
 ```
 
-Despite the idea of using regularization approaches is to reduce overfitting/variance, our linear regression model outperformed all three regularization techniques on the holdout data within intervals. This led us to explore a non-parametric approach that could still preserve linear relationships in the data using GAM.
+Despite the purpose of using regularization approaches being to reduce overfitting/variance, our linear regression model outperformed all three regularization techniques on the holdout data within intervals. This led us to explore a non-parametric approach that could still preserve linear relationships in the data using GAM.
 
 ### General Additive Model
 
-We initially built a GAM on the same 13 predictors as the linear regression model. After performing feature selection, we also constructed a simplified GAM using only 7 of the most important features. We then performed 5-fold cross validation to compare the performances of the linear regression, full GAM, and simplified GAM using RMSE.
+GAM are flexible models that are sure to outperform the linear regression because it could capture both linear and nonlinear relationships with its basis functions. We initially built a GAM on the same 13 predictors as the linear regression model. After performing feature selection, we also constructed a simplified GAM using only 7 of the most important features. We then performed 5-fold cross validation to compare the performances of the linear regression, full GAM, and simplified GAM using RMSE.
 
 ```{r}
 #CV Plot
+gam_cv
 ```
 
 Both GAM models outperform the linear regression model within intervals. The simple GAM (7 features) performs outperforms the full GAM (11 features) within intervals. The simplified GAM's better performance is likely due to reduce model variability compared to the full GAM.
 
 ## Results
 
-overview of the main results! Think about constructing key visualizations (and maybe some tables) that display your results to concisely communicate your conclusions. It’s easier to write the results after you come up with the key figures to include first. The main takeaways of your work should be clearly stated in this section.
+The 7 features in our simplified GAM model are: Physical Inactivity, Obesity, Food Insecurity, Excessive Drinking, Smoking, STI, and County Class Descriptions.
+
+When plotting our fitted values on a holdout set of actual values for YPLL we found that are simple GAM model predicts well for a majority of the data when YPLL < 15,000. However, once YPLL > 15,000 our model tends to underestimate these observations. As stated earlier when evaluating YPLL versus county types, YPLL observations tend to artificially inflate for low population counties. This phenomena can explain why our model underestimates large YPLL values.
 
 ```{r}
 #Fitted vs Actual
+fin_mod
 ```
-
 
 ## Discussion
 
