@@ -164,7 +164,8 @@ init_loso_cv_preds <-
             
             # Fit multinomial logistic regression model:
             ep_model <- 
-              multinom(Next_Score_Half ~ half_seconds_remaining + yardline_100 + down + log_ydstogo + log_ydstogo*down + yardline_100*down, data = train_data, maxit = 300)
+              multinom(Next_Score_Half ~ half_seconds_remaining + yardline_100 + down + log_ydstogo + log_ydstogo*down + yardline_100*down, 
+                       data = train_data, maxit = 300)
             
             # Return dataset of class probabilities:
             predict(ep_model, newdata = test_data, type = "probs") %>% #<<
