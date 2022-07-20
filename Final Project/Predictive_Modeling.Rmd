@@ -937,9 +937,11 @@ df_names = c("county_class", "inactive_per", "obesity_rate", "food_per", "drink_
 #Modify tabpanel title height x width (CSS needed)
 ui = navbarPage(title = div(img(
   
-  src = "https://512solutions.com/wp-content/uploads/2021/04/Optum-logo.png", height = 55, width = 190), ""),
+  src = "https://www.logolynx.com/images/logolynx/e7/e7ec1b0c8c294ff754d8e20c5636e6ae.png", height = 60, width = 210), ""),
   
   theme = bs_theme(bootswatch = "lux"),
+  
+  inverse = T,
   
           tags$head(
            tags$style(HTML('.navbar-nav > li > a, .navbar-brand {
