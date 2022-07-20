@@ -121,7 +121,6 @@ new_add_data = select(add_data, -contains(c("CI", "Quartile"), ignore.case = F))
 comb_data = inner_join(new_data, new_add_data, by = c("FIPS", "State", "County"))
 ```
 
-
 ```{r}
 #note: first row of a state is aggregated/averaged information at the state level
 #note: Other rows are simply aggregated at the county level
@@ -335,7 +334,7 @@ demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c(), reg
   filter_region = expand_region(region)
 
   plot_usmap(data = filter(df, Race == filter_input), values = "YPLL", color = "black", include = filter_region) + 
-  scale_fill_continuous(low = "white", high = "red", name = "YPLL (2020)", label = scales::comma, limits = limit_set) + 
+  scale_fill_continuous(low = "white", high = "red", name = "YPLL", label = scales::comma, limits = limit_set) + 
   theme(legend.position = "right",
         legend.key.size = unit(10, 'mm')) +
   labs(title = "") #Race_Type
@@ -912,6 +911,7 @@ data.frame(y_actual, y_fitted) %>%
   ggplot(., aes(x = y_actual, y = y_fitted)) +
   geom_point(alpha = 0.5) +
   geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  coord_equal() +
   labs(x = "Actual", y = "Predicted")
 ```
 
