@@ -1,0 +1,138 @@
+---
+title: "Report"
+output: html_document
+date: '2022-06-29'
+---
+
+# Premature Death Prediction Model Using Health Behavior Data
+
+## Introduction
+
+- Question: How can we predict premature deaths using county level health behavior data?
+
+- Question: Which particular health behaviors are most influential in modeling premature deaths?
+
+The data given from County Health Rankings allowed us to analyze the community health approach that stresses various variables that determine how long and how well we live. The data given allows us to assist communities in understanding how healthy citizens are and what type of health behaviors they possess.
+
+### Motivation
+
+Premature Mortality is a measure of length of life that focuses on preventable deaths, and this is done by increasing the weight of deaths of younger people. In the County Health Rankings data set, deaths that occur at ages significantly lower than 75 are counted more than deaths that occur at or above 75. This adjustment allows researchers to analyze which deaths are occurring because of life factors, such as poor health behaviors or physical environment, instead of old age. In the case of this analysis, it will allow focus to be on counties where citizens are exhibiting high rates of poor health behaviors but not on counties where the population is elderly.
+
+Health behaviors are a leading cause of illness and death in the United states. Efforts to improve public health require information on the prevalence of health behaviors in populations. Studies conducted concluded that approximate half of all deaths in the Unites States could be attributed to factors such as smoking, physical inactivity, poor diet, and alcohol use. Identifying which health behaviors most contribute to premature deaths is is useful for health program planning and evaluation.
+
+(https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2901573/)
+
+## Data
+
+Health behaviors are actions taken by individuals that can affect their health. In terms of health behaviors, the following categories were accounted for: Alcohol/Drug Use, Diet/Exercise, Tobacco Use and Sexual Activity. Below we provide descriptions of each variable within every health behavior category.
+
+### Data Description
+
+**Response**
+
+- Premature Death: Years of potential life (YPLL) lost before age 75 per 1000,000 population (2018-2020) 
+
+**Predictors**
+  
+*Alcohol and Drug Use* 
+
+- Excessive Drinking: Percentage of adults reporting binge or heavy drinking per 100,000 population (2019)
+  
+- Alcohol-Impaired Driving Deaths: Percentage of driving deaths with alcohol involvement (2016-2020)
+  
+- Drug Overdose Deaths: Number of drug poisoning deaths per 100,000 population (2018-2020)
+  
+- Motor Vehicle Crash Deaths: Number of motor vehicle crash deaths per 100,000 population (2014-2020)
+
+*Diet and Exercise*
+
+- Adult Obesity: Percentage of the adult population that reports a body mass index (BMI) greater than or equal to 30 kg/m2 (2019)
+  
+- Food Environment Index: Index of factors that contribute to a healthy food environment, from 0 (worst) to 10 (best)  (2019)
+  
+- Physical Inactivity: Percentage of adults age 18 and over reporting no leisure-time physical activity (age-adjusted) (2019)
+  
+- Access to Exercise Opportunities: Percentage of population with adequate access to locations for physical activity (2010 & 2021)
+  
+- Food Insecurity: Percentage of population who lack adequate access to food (2019)
+  
+- Limited Access to Healthy Foods: Percentage of population who are low-income and do not live close to a grocery store (2019)
+  
+*Tobacco Use*
+
+- Adult Smoking: Percentage of adults (age 18 and older) who are current smokers (2019) 
+
+*Sexual Activity* 
+
+- Sexually Transmitted Infections: Number of newly diagnosed chlamydia cases per 100,000 population (2019)
+
+*Population*
+
+- County Class: County description categorized by population (Urban $\geq$ 200k, Rural $\leq$ 50k, 200k $<$ Suburban $<$ 50k) (2020)
+
+### Exploratory Data Analysis
+
+```{r}
+#YPLL Map
+```
+
+```{r}
+#YPLL vs Predictors
+```
+
+```{r}
+#Predictors vs Predictors
+```
+
+
+## Methods
+
+State the considered methods and motivate why they were used, why they were appropriate or more appropriate than other methods
+
+Given the relatively linear relationships discovered in our EDA, we first explored linear regression, general additive models (GAM), and regularization techniques. We then explored a tree based modeling approach using gradient boosted machines (GBM).
+
+### Regularization Techniques
+
+We first explored the performance of linear regression model using all 13 features compared to a Lasso, Ridge, and elastic net techniques. Using 5-fold cross validation, we evaluated model performance on predicting YPLL using root mean squared error (RMSE) as our cost function.
+
+```{r}
+#CV Plot
+```
+
+Despite the idea of using regularization approaches is to reduce overfitting/variance, our linear regression model outperformed all three regularization techniques on the holdout data within intervals. This led us to explore a non-parametric approach that could still preserve linear relationships in the data using GAM.
+
+### General Additive Model
+
+We initially built a GAM on the same 13 predictors as the linear regression model. After performing feature selection, we also constructed a simplified GAM using only 7 of the most important features. We then performed 5-fold cross validation to compare the performances of the linear regression, full GAM, and simplified GAM using RMSE.
+
+```{r}
+#CV Plot
+```
+
+Both GAM models outperform the linear regression model within intervals. The simple GAM (7 features) performs outperforms the full GAM (11 features) within intervals. The simplified GAM's better performance is likely due to reduce model variability compared to the full GAM.
+
+## Results
+
+overview of the main results! Think about constructing key visualizations (and maybe some tables) that display your results to concisely communicate your conclusions. It’s easier to write the results after you come up with the key figures to include first. The main takeaways of your work should be clearly stated in this section.
+
+```{r}
+#Fitted vs Actual
+```
+
+
+## Discussion
+
+restate the conclusions from your Results section but then discuss limitations and next steps for future work.
+
+**Limitations**
+- unequal years
+- county level data used (underestimate variability), better to have individual level data
+
+**Future Work**
+
+
+
+
+
+
+
