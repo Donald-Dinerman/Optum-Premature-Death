@@ -915,7 +915,9 @@ summary(final_gam_model)
 
 # Conclusions
 
-# To Do: (1) Get year labels on all features, (2) Shiny App, (3) Formalize EDA, Methods and Conclusions 
+# To Do: (1) Get year labels on all features, (2) Shiny App, (3) Formalize EDA, Methods and Conclusions, (4) Publish Shiny 
+
+For EDA, show YPLL map distribution then show relationship with predictors (e.g., smoke, food) then show relationship between predictors to demonstrate some independence but also some correlation (especially between the food predictors). Then go to methods practices
 
 # Shiny App
 
@@ -923,6 +925,7 @@ summary(final_gam_model)
 ```{r}
 library(shiny)
 library(shinyBS)
+library(bslib)
 
 county_options = c("Urban", "Suburban", "Rural") %>% sort()
 demo_options = c("All", "Asian", "Black", "Hispanic", "Native American", "White") %>% sort()
@@ -935,6 +938,8 @@ df_names = c("county_class", "inactive_per", "obesity_rate", "food_per", "drink_
 ui = navbarPage(title = div(img(
   
   src = "https://512solutions.com/wp-content/uploads/2021/04/Optum-logo.png", height = 55, width = 190), ""),
+  
+  theme = bs_theme(bootswatch = "lux"),
   
           tags$head(
            tags$style(HTML('.navbar-nav > li > a, .navbar-brand {
@@ -985,7 +990,7 @@ ui = navbarPage(title = div(img(
 
              ))),
   
-    tabPanel(title = "Premature Deaths Map",
+    tabPanel(title = "Interactive Map",
              
     fluidPage(
         
