@@ -1,11 +1,11 @@
 ---
-title: "Report: Predicting Premature Deaths"
+title: "Premature Death Prediction Model Using Health Behavior Data"
 output: html_document
 date: '2022-06-29'
 ---
 
-# Question: use geom_smooth? if so lm method or gam?, what to add for results section?
 ```{r setup, include=FALSE}
+## Question: use geom_smooth? if so lm method or gam?, what to add for results section?
 #Going to run all code above HTML, save output as objects and then call objects in html code chunks
 knitr::opts_chunk$set(echo = F, warning = F, message = F)
 ```
@@ -20,6 +20,7 @@ library(glmnet)
 library(broom)
 library(caret)
 library(mgcv)
+library(cowplot)
 ```
 
 ```{r}
@@ -91,32 +92,32 @@ ypll_smoke = ggplot(county_pred_df, aes(y = YPLL, x = smoke)) +
   geom_point(alpha = 0.25) +
   theme_bw() +
   geom_smooth(se = F) +
-  labs(title = "YPLL Increases As Smoking Prevelance Increases", y = "Years of Potential Life Lost (YPLL)", x = "% Smokers")
+  labs(y = "YPLL", x = "% Smokers") #title = "YPLL Increases As Smoking Prevelance Increases"
 
 ypll_drink = ggplot(county_pred_df, aes(y = YPLL, x = drink_per)) +
   geom_point(alpha = 0.25) +
   theme_bw() +
   geom_smooth(se = F) +
-  labs(title = "YPLL Decreases As Smoking Prevelance Increases", y = "Years of Potential Life Lost (YPLL)", x = "% Excessive Drinking")
+  labs(y = "YPLL", x = "% Excessive Drinking") #title = "YPLL Decreases As Smoking Prevelance Increases"
 
 ypll_food = ggplot(county_pred_df, aes(y = YPLL, x = food_per)) +
   geom_point(alpha = 0.25) +
   theme_bw() +
   geom_smooth(se = F) +
-  labs(title = "YPLL Increases As Food Insecurity Increases", y = "Years of Potential Life Lost (YPLL)", x = "% Food Insecure")
+  labs(y = "YPLL", x = "% Food Insecure") #title = "YPLL Increases As Food Insecurity Increases"
 
 ypll_obesity = ggplot(county_pred_df, aes(y = YPLL, x = obesity_rate)) +
   geom_point(alpha = 0.25) +
   theme_bw() +
   geom_smooth(se = F) +
-  labs(title = "YPLL Increases As Obesity Levels Increases", y = "Years of Potential Life Lost (YPLL)", x = "% Adults with Obesity")
+  labs(y = "YPLL", x = "% Adults with Obesity") #title = "YPLL Increases As Obesity Levels Increases"
 
 ypll_countyclass = ggplot(county_pred_df, aes(y = YPLL, x = county_class)) +
   geom_violin() +
   geom_boxplot(width = .2) +
   scale_x_discrete(limits = c("Urban", "Suburban", "Rural")) +
   theme_bw() +
-  labs(title = "YPLL Variability Increase as County Population Decreases", y = "Years of Potential Life Lost (YPLL)", x = "County Type")
+  labs(y = "YPLL", x = "County Type") #title = "YPLL Variability Increase as County Population Decreases"
 ```
 
 ```{r}
@@ -124,20 +125,19 @@ food_obesity = ggplot(county_pred_df, aes(y = food_per, x = obesity_rate)) +
   geom_point() +
   geom_smooth(se = F) +
   theme_bw() +
-  labs(title = "Positive Relationship Between Obesity and Food Insecurity", y = "% Food Insecure", x = "% Adults with Obesity")
+  labs(y = "% Food Insecure", x = "% Adults with Obesity") #title = "Positive Relationship Between Obesity and Food Insecurity"
 
 food_drink = ggplot(county_pred_df, aes(y = food_per, x = drink_per)) +
   geom_point() +
   geom_smooth(se = F) +
   theme_bw() +
-  labs(title = "Inverse Relationship Between Food Insecurity and Excessive Drinking", y = "% Food Insecure", x = "% Excessive Drinking")
+  labs(y = "% Food Insecure", x = "% Excessive Drinking") #title = "Inverse Relationship Between Food Insecurity and Excessive Drinking"
 
 smoke_dui = ggplot(county_pred_df, aes(y = smoke, x = dui_per)) +
   geom_point() +
   geom_smooth(se = F) +
   theme_bw() +
-  labs(title = "No Relationship Between Smoking and Alcohol Driving Deaths", y = "% Smokers", 
-       x = "% Driving Deaths with Alcohol Involvement")
+  labs(y = "% Smokers", x = "% Driving Deaths with Alcohol Involvement") #title = "No Relationship Between Smoking and Alcohol Driving Deaths"
 ```
 
 ```{r}
@@ -310,9 +310,6 @@ fin_mod = data.frame(y_actual, y_fitted) %>%
   labs(x = "Actual", y = "Predicted")
 ```
 
-
-# Premature Death Prediction Model Using Health Behavior Data
-
 ## Introduction
 
 - Question: How can we predict premature deaths using county level health behavior data?
@@ -385,20 +382,9 @@ ypll_map
 Next we modeled our predictors' relationships with the response variable. To do this comprehensively yet efficiently, we created pairs plots and a correlation matrix. For the purposes of this report, we've included only some scatter plots between our response and predictors that we believe captures the most significant relationships. Of our explanatory variables that demonstrated a significant relationship with YPLL, their relationship was largely linear with some curvature at the ends.
 
 ```{r}
-#YPLL vs Predictors
-ypll_drink
-```
-
-```{r}
-ypll_smoke
-```
-
-```{r}
-ypll_food
-```
-
-```{r}
-ypll_obesity
+#YPLL vs Predictors (use cowplot for formatting plots)
+plot_grid(ypll_drink, ypll_smoke,ypll_food, ypll_obesity, 
+          ncol = 2, labels = c('A', 'B', 'C', 'D'), label_fontface = 'bold',label_size = 11)
 ```
 
 Given that county class is our only categorical predictor, we created a violin plot overlayed on top of a boxplot to model the relationship between county types and YPLL. Interestingly, we found that the mean YPLL and YPLL variability increases as population decreases. The mean increasing could be potentially due to poorer access to high quality healthcare in more rural areas versus the city or other factors. However, the high degree of variation in the YPLL could be explained by how the statistic is derived. YPLL measures years of potential lives lost per 100k people. Therefore in counties where their total population is 10k, their YPLL statistic will be multiplied by a factor of 10. Therefore, in smaller populations we are more likely to see high YPLL variability 'technically' at both ends (but from this plot we really only see that it is heavily skewed right).
@@ -412,17 +398,8 @@ To test for collinearity we plotted the predictors against each other. We found 
 
 ```{r}
 #Predictors vs Predictors (diet/diet)
-food_obesity
-```
-
-```{r}
-#Predictors vs Predictors (food/drink)
-food_drink
-```
-
-```{r}
-#Predictors vs Predictors (smoke/dui)
-smoke_dui
+plot_grid(food_obesity, food_drink, smoke_dui, 
+          ncol = 2, labels = c('A', 'B', 'C'), label_fontface = 'bold', label_size = 11)
 ```
 
 ## Methods
