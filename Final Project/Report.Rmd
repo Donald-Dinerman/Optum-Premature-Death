@@ -311,6 +311,10 @@ fin_mod = data.frame(y_actual, y_fitted) %>%
   labs(x = "Actual", y = "Predicted")
 ```
 
+```{r, include=F}
+#how to do VIP for gam
+```
+
 ## Introduction
 
 - Question: How can we predict premature deaths using county level health behavior data?
@@ -442,21 +446,23 @@ fin_mod
 
 ## Discussion
 
-restate the conclusions from your Results section but then discuss limitations and next steps for future work.
+**Conclusions**
+
+- Our simplified GAM outperforms our full GAM and linear regression model in predicting premature deaths.
+
+- Our simplified GAM underestimates true YPLL values above 15,000 years.
 
 **Limitations**
 
-- unequal years
+- The high variation in premature deaths among small populations (i.e., Rural counties) can create inflated and unreliable calculations for YPLL. This can lead to misguided conclusions in both the EDA and modeling process when mapping the relationship between the response and predictor.
 
-- county level data used (underestimate variability), better to have individual level data
+- The years our response and predictor variables were collected vary. This complicates drawing direct inference of health behaviors relationship with premature deaths. For prediction purposes, we believe it is valid to use variables from varying years because time is not independent across counties. Therefore, health behaviors-- such as the proportion of tobacco smokers-- shouldn't significantly vary within a couple years within the same county.
+
+- Due to anonymity constraints, we used county level health data rather than individual level data. However, data aggregated at the county level significantly underestimates variability in the data and does not give us insight into the demographic features of our predictor variables. With individual level data, we could group data by race and build models that can predict premature deaths by race using these grouped features.
 
 **Future Work**
 
-- 
+- Given the scope of this project, we focused on health behaviors' relationship with premature deaths. However, health behaviors only capture a piece of the factors that influence premature deaths. In the future, building a robust model using other health factors (e.g., clinical care, socioeconomic factors) to predict premature deaths could create a more complete picture.  
 
-- 
-
-
-
-
+- In cohort studies, health data is collected from individuals among a specific area or demographic. Using a cohort study, the predictive model could show health behavior effects on premature mortality at the individual level and we could account for more specific health measures, such as blood pressure and waist circumference. 
 
