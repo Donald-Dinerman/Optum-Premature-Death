@@ -859,7 +859,7 @@ Simple gam (7 features) performs outperforms gam with all 11 features within int
 Interesting is that population instead of county_class outperforms very slightly, which is to be expected especially in GAM bc we lose some variability in information when transforming population to 3 county classes
 
 
-#HELPPP: I tested models using df w p parameters and the df was filtered w na.omit on all p. But i settled on a model with p-4 parameters, so can I refilter my dataframe so it only na.omit on those p-4 parameters? (difference of ~80 obs)? How can I do variable importance plot with gam?
+#HELPPP: How can I do variable importance plot with gam?
 
 ```{r}
 #Fitted vs Residuals for final model
@@ -920,7 +920,7 @@ summary(final_gam_model)
 
 # Conclusions
 
-# To Do: (1) Shiny App, (2) Formalize EDA, Methods and Conclusions, (3) Publish Shiny 
+# To Do: (1) Shiny App, (2) Publish Shiny 
 
 For EDA, show YPLL map distribution then show relationship with predictors (e.g., smoke, food) then show relationship between predictors to demonstrate some independence but also some correlation (especially between the food predictors). Then go to methods practices
 
