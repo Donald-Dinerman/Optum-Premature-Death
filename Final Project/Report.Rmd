@@ -1,11 +1,11 @@
 ---
 title: "Premature Death Prediction Model Using Health Behavior Data"
 output: html_document
-date: '2022-06-29'
+date: '2022-07-22'
 ---
 
 ```{r setup, include=FALSE}
-## Question: use geom_smooth? if so lm method or gam?, what to add for results section?
+## Question: use geom_smooth? if so lm method or gam?, what to add for results section? GAM inference?
 #Going to run all code above HTML, save output as objects and then call objects in html code chunks
 knitr::opts_chunk$set(echo = F, warning = F, message = F)
 ```
@@ -114,7 +114,7 @@ ypll_obesity = ggplot(county_pred_df, aes(y = YPLL, x = obesity_rate)) +
 
 ypll_countyclass = ggplot(county_pred_df, aes(y = YPLL, x = county_class)) +
   geom_violin() +
-  geom_boxplot(width = .2) +
+  geom_boxplot(width = .2, alpha = 0.25) +
   scale_x_discrete(limits = c("Urban", "Suburban", "Rural")) +
   theme_bw() +
   labs(y = "YPLL", x = "County Type") #title = "YPLL Variability Increase as County Population Decreases"
@@ -122,19 +122,19 @@ ypll_countyclass = ggplot(county_pred_df, aes(y = YPLL, x = county_class)) +
 
 ```{r}
 food_obesity = ggplot(county_pred_df, aes(y = food_per, x = obesity_rate)) +
-  geom_point() +
+  geom_point(alpha = 0.25) +
   geom_smooth(se = F) +
   theme_bw() +
   labs(y = "% Food Insecure", x = "% Adults with Obesity") #title = "Positive Relationship Between Obesity and Food Insecurity"
 
 food_drink = ggplot(county_pred_df, aes(y = food_per, x = drink_per)) +
-  geom_point() +
+  geom_point(alpha = 0.25) +
   geom_smooth(se = F) +
   theme_bw() +
   labs(y = "% Food Insecure", x = "% Excessive Drinking") #title = "Inverse Relationship Between Food Insecurity and Excessive Drinking"
 
 smoke_dui = ggplot(county_pred_df, aes(y = smoke, x = dui_per)) +
-  geom_point() +
+  geom_point(alpha = 0.25) +
   geom_smooth(se = F) +
   theme_bw() +
   labs(y = "% Smokers", x = "% Driving Deaths with Alcohol Involvement") #title = "No Relationship Between Smoking and Alcohol Driving Deaths"
@@ -307,6 +307,7 @@ fin_mod = data.frame(y_actual, y_fitted) %>%
   geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
   coord_equal() +
   theme_bw() +
+  geom_smooth(se = F) +
   labs(x = "Actual", y = "Predicted")
 ```
 
@@ -324,11 +325,11 @@ Premature Mortality is a measure of length of life that focuses on preventable d
 
 Health behaviors are a leading cause of illness and death in the United states. Efforts to improve public health require information on the prevalence of health behaviors in populations. Studies conducted concluded that approximate half of all deaths in the Unites States could be attributed to factors such as smoking, physical inactivity, poor diet, and alcohol use. Identifying which health behaviors most contribute to premature deaths is is useful for health program planning and evaluation.
 
-(https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2901573/)
-
 ## Data
 
-Health behaviors are actions taken by individuals that can affect their health. In terms of health behaviors, the following categories were accounted for: Alcohol, Diet/Exercise, Tobacco Use and Sexual Activity. Below we provide descriptions of each variable within every health behavior category.
+Our data set was gathered from the County Health Rankings Model. This model contains community health information that emphasizes the many factors that influence how long and how well we live. Specifically, we focused on county-level premature deaths and health behavior factors for our analysis.
+
+Health behaviors are actions individuals take that affect their health. They include actions that lead to improved health, such as eating well and being physically active, and actions that increase one’s risk of disease, such as smoking, excessive alcohol intake, and risky sexual behavior. Below we provide descriptions of each variable within every health behavior category.
 
 ### Data Description
 
@@ -394,7 +395,7 @@ Given that county class is our only categorical predictor, we created a violin p
 ypll_countyclass #violin overlay on box plot, variability limitation in YPLL calculation for low pop counties
 ```
 
-To test for collinearity we plotted the predictors against each other. We found that the diet/exercise variables were positively correlated with each other which could potentially complicate capturing inference from our models. We also saw that excesive drinking shared an inverse relationship with food insecurity. On the other hand, alcohol-impaired driving deaths and smoking were independent of each other as their scatterplot resembled a random scatter with zero slope.
+To test for collinearity we plotted the predictors against each other. We found that the diet/exercise variables were positively correlated with each other which could potentially complicate capturing inference from our models. We also saw that excessive drinking shared an inverse relationship with food insecurity. On the other hand, alcohol-impaired driving deaths and smoking were independent of each other as their scatterplot resembled a random scatter with zero slope.
 
 ```{r}
 #Predictors vs Predictors (diet/diet)
@@ -408,7 +409,7 @@ Given the relatively linear relationships discovered in our EDA, we first explor
 
 ### Regularization Techniques
 
-We first explored the performance of linear regression model using all 13 features compared to a Lasso, Ridge, and elastic net techniques. Using 5-fold cross validation, we evaluated model performance on predicting YPLL using root mean squared error (RMSE) as our cost function.
+We first explored the performance of linear regression model using all 13 features compared to a lasso, ridge, and elastic net techniques. Using 5-fold cross validation, we evaluated model performance on predicting YPLL using root mean squared error (RMSE) as our cost function.
 
 ```{r}
 #CV Plot
@@ -444,12 +445,16 @@ fin_mod
 restate the conclusions from your Results section but then discuss limitations and next steps for future work.
 
 **Limitations**
+
 - unequal years
+
 - county level data used (underestimate variability), better to have individual level data
 
 **Future Work**
 
+- 
 
+- 
 
 
 
