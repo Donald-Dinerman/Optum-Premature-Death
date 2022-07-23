@@ -4,91 +4,52 @@ output: html_document
 date: '2022-06-29'
 ---
 
-# Goal
-
-Develop a model to predict length of life using Health Behaviors
-
-Determine variable to define length of life.
-
-Determine the mix of predictors (i.e., specific x's and categories).
-
 # Data Documentation
-
 ```{r}
 #(https://www.countyhealthrankings.org/explore-health-rankings/measures-data-sources/county-health-rankings-model?componentType=factor-area&componentId=3)
 ```
 
-* Additional Measure (not included in ranks)
+Note: Data is aggregated and therefore variables must be weighted by population when feasible. By default, many variables are weighted by population.
 
-## Length of Life
+**Response**
 
-Premature Death: Years of potential life (YPLL) lost before age 75 per 100,000 population (age-adjusted)
+- Premature Death: Years of potential life (YPLL) lost before age 75 per 1000,000 population (2018-2020) 
 
-Life Expectancy: Average number of years a person can expect to live.
+**Predictors**
+  
+*Alcohol* 
 
-## Health Behaviors
-
-*Tobacco*
-Adult Smoking: Percentage of adults who are current smokers (age-adjusted).
-
-*Sexual Activity*
-Sexually Transmitted Infections: Number of newly diagnosed chlamydia cases per 100,000 population.
-
-*Alcohol and Drug Use*
-Excessive Drinking: Percentage of adults reporting binge or heavy drinking (age-adjusted).
-
-Alcohol-Impaired Driving Deaths: Percentage of driving deaths with alcohol involvement.
-
-Drug Overdose Deaths*: Number of drug poisoning deaths per 100,000 population.
-
-Motor Vehicle Crash Deaths*: Number of motor vehicle crash deaths per 100,000 population.
+- Excessive Drinking: Percentage of adults reporting binge or heavy drinking per 100,000 population (2019)
+  
+- Alcohol-Impaired Driving Deaths: Percentage of driving deaths with alcohol involvement (2016-2020)
 
 *Diet and Exercise*
-Adult Obesity: Percentage of the adult population (age 18 and older) that reports a body mass index (BMI) greater than or equal to 30 kg/m2 (age-adjusted).
 
-Food Environment Index: Index of factors that contribute to a healthy food environment, from 0 (worst) to 10 (best). 
+- Adult Obesity: Percentage of the adult population that reports a body mass index (BMI) greater than or equal to 30 kg/m2 (2019)
+  
+- Food Environment Index: Index of factors that contribute to a healthy food environment, from 0 (worst) to 10 (best)  (2019)
+  
+- Physical Inactivity: Percentage of adults age 18 and over reporting no leisure-time physical activity (age-adjusted) (2019)
+  
+- Access to Exercise Opportunities: Percentage of population with adequate access to locations for physical activity (2010 & 2021)
+  
+- Food Insecurity: Percentage of population who lack adequate access to food (2019)
+  
+- Limited Access to Healthy Foods: Percentage of population who are low-income and do not live close to a grocery store (2019)
+  
+*Tobacco Use*
 
-Physical Inactivity: Percentage of adults age 18 and over reporting no leisure-time physical activity (age-adjusted). 
+- Adult Smoking: Percentage of adults (age 18 and older) who are current smokers (2019) 
 
-Access to Exercise Opportunities: Percentage of population with adequate access to locations for physical activity.
+*Sexual Activity* 
 
-Food Insecurity*: Percentage of population who lack adequate access to food.
+- Sexually Transmitted Infections (STI): Number of newly diagnosed chlamydia cases per 100,000 population (2019)
 
-Limited Access to Healthy Foods*: Percentage of population who are low-income and do not live close to a grocery store.
+*Population*
 
-## Social and Economic Factors
+- County Class: County description categorized by population (Urban $\geq$ 200k, Rural $\leq$ 50k, 200k $<$ Suburban $<$ 50k) (2020)
 
-*Employment*
-Unemployment: Percentage of population ages 16 and older unemployed but seeking work.
-
-*Education*
-High School Completion: Percentage of adults ages 25 and over with a high school diploma or equivalent.
-
-Some College: Percentage of adults ages 25-44 with some post-secondary education.
-
-High School Graduation*: Percentage of ninth-grade cohort that graduates in four years.
-
-*Income*
-Income Inequality: Ratio of household income at the 80th percentile to income at the 20th percentile.
-
-Median Household Income*: The income where half of households in a county earn more and half of households earn less.
-
-Living Wage*: The hourly wage needed to cover basic household expenses plus all relevant taxes for a household of one adult and two children.
-
-*Community Safety*
-Violent Crime: Number of reported violent crime offenses per 100,000 population.
-
-Injury Deaths: Number of deaths due to injury per 100,000 population.
-
-Homicides*: Number of deaths due to homicide per 100,000 population.
-
-Suicides*: Number of deaths due to suicide per 100,000 population (age-adjusted).
-
-Firearm Fatalities*: Number of deaths due to firearms per 100,000 population.
-
-Juvenile Arrests*: Rate of delinquency cases per 1,000 juveniles.
-
-# Read Data
+# Data Wrangling
 
 ```{r}
 library(tidyverse)
@@ -142,67 +103,9 @@ reliable_data = reliable_data %>%
                      TRUE ~ "Rural")) #%>% select(State, County, county_class, Population)
 ```
 
-```{r,include=F}
-#Comparing YPLL state aggregated calculations to see impact of removing unreliable county data
-#Research what age-adjusted calculations do
-#Why don't these match up (there's a minor computational discrepancy to the +- 0.2 lvl)
-comb_data %>%
-  group_by(State) %>%
-  dplyr::slice(1) %>%
-  summarise(a = `Years of Potential Life Lost Rate`)
-
-comb_data %>%
-  group_by(State) %>%
-  dplyr::slice(-1) %>%
-  summarise(a = sum(`Years of Potential Life Lost Rate` * `Population`, na.rm = T),
-            b = sum(`Population`, na.rm = T),
-            c = a/b)
-
-reliable_data %>%
-  group_by(State) %>%
-  dplyr::slice(-1) %>%
-  summarise(a = sum(`Years of Potential Life Lost Rate` * `Population`, na.rm = T),
-            b = sum(`Population`, na.rm = T),
-            c = a/b)
-```
-
 # EDA
 
-Note: Data is aggregated and therefore variables must be weighted by population when feasible. By deafult, many variables are weighted by population.
-
-Response: "Years of Potential Life Lost Rate" (YPLL)
-
-Predictors: 
-
-*Tobacco*
-Adult Smoking: Percentage of adults who are current smokers (age-adjusted). (`% Smokers`)
-
-*Sexual Activity*
-Sexually Transmitted Infections: Number of newly diagnosed chlamydia cases per 100,000 population. (`# Chlamydia Cases`)
-
-*Alcohol and Drug Use*
-Excessive Drinking: Percentage of adults reporting binge or heavy drinking (age-adjusted). (`% Excessive Drinking`)
-
-Alcohol-Impaired Driving Deaths: Percentage of driving deaths with alcohol involvement. (`% Driving Deaths with Alcohol Involvement`)
-
-Drug Overdose Deaths*: Number of drug poisoning deaths per 100,000 population. (`# Drug Overdose Deaths`)
-
-Motor Vehicle Crash Deaths*: Number of motor vehicle crash deaths per 100,000 population. (`# Motor Vehicle Deaths`)
-
-*Diet and Exercise*
-Adult Obesity: Percentage of the adult population (age 18 and older) that reports a body mass index (BMI) greater than or equal to 30 kg/m2 (age-adjusted). (`% Adults with Obesity`)
-
-Food Environment Index: Index of factors that contribute to a healthy food environment, from 0 (worst) to 10 (best). (`Food Environment Index`)
-
-Physical Inactivity: Percentage of adults age 18 and over reporting no leisure-time physical activity (age-adjusted). (`% Physically Inactive`)
-
-Access to Exercise Opportunities: Percentage of population with adequate access to locations for physical activity. (`% With Access to Exercise Opportunities`)
-
-Food Insecurity*: Percentage of population who lack adequate access to food. (`% Food Insecure`)
-
-Limited Access to Healthy Foods*: Percentage of population who are low-income and do not live close to a grocery store. (`% Limited Access to Healthy Foods`)
-
-## Response
+## Response Map
 ```{r}
 library(usmap)
 library(ggplot2)
@@ -214,13 +117,13 @@ state_df = reliable_data %>%
   rename(., state = State, YPLL = 'Years of Potential Life Lost Rate', Life_Expectancy = 'Life Expectancy')
 
 #YPLL (low values good)
-plot_usmap(data = state_df, values = "YPLL", color = "black") + 
+state_map = plot_usmap(data = state_df, values = "YPLL", color = "black") + 
   scale_fill_continuous(name = "YPLL (2020)", low = "white", high = "red", 
                         label = scales::comma, limits = c(5000,11500)) + 
   theme(legend.position = "right") +
   labs(title = "")
 
-plot_usmap(data = state_df, values = "YPLL", color = "black", include = .south_region) + #SPecify region
+state_region_map = plot_usmap(data = state_df, values = "YPLL", color = "black", include = .south_region) + #SPecify region
   scale_fill_continuous(name = "YPLL (2020)",  low = "white", high = "red",  
                         label = scales::comma, limits = c(5000,11500)) + 
   theme(legend.position = "right") +
@@ -242,7 +145,7 @@ county_df = reliable_data %>%
   #filter(Life_Expectancy < 100, YPLL < 25000)
 
 #YPLL (low values good)
-plot_usmap(data = county_df, values = "YPLL", color = "black") + 
+county_map = plot_usmap(data = county_df, values = "YPLL", color = "black") + 
   scale_fill_continuous(name = "YPLL (2020)",  low = "white", high = "red",  
                         label = scales::comma) + 
   theme(legend.position = "right") +
@@ -254,8 +157,6 @@ plot_usmap(data = county_df, values = "YPLL", color = "black") +
 #   theme(legend.position = "right") +
 #   labs(title = "")
 ```
-
-### Demographic
 
 ```{r}
 #state level demo data
@@ -343,9 +244,39 @@ demo_map(Race_Type = "White", region = "Midwest")
 demo_map(Race_Type = "All")
 ```
 
+## Response Percentile Ranking
+```{r}
+county_response_df = reliable_data %>%
+  rename(., all_YPLL = 'Years of Potential Life Lost Rate') %>%
+  select(., State, County, all_YPLL) %>% 
+  na.omit()
+
+ypll_hist = function(pred_value){
+
+  value = pred_value #predicted value
+  num = sum(value > county_response_df$all_YPLL) #count where value > responses
+  denom = length(county_response_df$all_YPLL) #count of all responses
+  percentile = round(num/denom, 2) #percentile
+  per_label = paste(percentile*100, "percentile", sep = " ")
+
+  ggplot(county_response_df, aes(x = all_YPLL)) +
+    geom_histogram(col = "black", fill = "steelblue", binwidth = 500) + #stat_ecdf alternative but harder for lay to interpret
+    geom_vline(xintercept = value, linetype = "dashed") +
+    geom_text(aes(x = value, y = 240, label= per_label), nudge_x = 1700, colour = "steelblue", angle = 0, size = 5.5) +
+    scale_x_continuous(label = scales::comma) + #the nudge lvl are weird bc im tuning it for shiny
+    scale_y_continuous(breaks = seq(0,200,50)) +
+    theme_bw() +
+    labs(x = "YPPL", y = "Count", title = "Predicted YPLL Percentile Ranking")
+}
+
+ypll_hist(12310.13)
+```
+
+
 ## Predictors
 
 ```{r, include=F}
+#function that takes in df and varname and outputs ggplot
 test_func = function(df = state_df, var_name){ 
   
   ggplot(df, aes(x = get(var_name))) + #use get to transform char to var name
@@ -390,24 +321,6 @@ lin_cor = cor(num_df, df[,length(df)]) %>%
 ```{r, include = F}
 #Dataframe with all the predictors
 #Comparing county differences if we omit all NAs
-no_na_pred_df = reliable_data %>%
-  group_by(State, County) %>%
-  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
-  summarise(#alcohol/drug
-            drink_per = `% Excessive Drinking`, dui_per = `% Driving Deaths with Alcohol Involvement`, 
-            od_num = `# Drug Overdose Deaths`, vehicle_death = `# Motor Vehicle Deaths`, obesity_rate = `% Adults with Obesity`, 
-            #food/exercise
-            food_index = `Food Environment Index`, inactive_per = `% Physically Inactive`, 
-            exercise_access_per = `% With Access to Exercise Opportunities`, food_per = `% Food Insecure`, 
-            healthy_access_per = `% Limited Access to Healthy Foods`,
-            #tobacco
-            smoke = `% Smokers`, 
-            #sex
-            std = `Chlamydia Rate`, 
-            #response
-            YPLL) %>%
-  na.omit()
-
 county_df = reliable_data %>%
   group_by(State, County) %>%
   rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
@@ -425,85 +338,106 @@ county_df = reliable_data %>%
             #response
             YPLL)
 
-setdiff(county_df, no_na_pred_df) %>% #find rows not in subsetted df comparing to parent df
+setdiff(county_df, df) %>% #find rows not in subsetted df comparing to parent df
   is.na() %>% 
   colSums()
 ```
 
-#### Tobacco 
+### Predictor Maps 
 
 ```{r}
-state_tobacco_sex_df = reliable_data %>%
+#create state lvl df
+state_pred_df = reliable_data %>%
   group_by(State) %>%
-  dplyr::slice(1) %>%
+  slice(1) %>%
   rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
-  summarise(smoke = `% Smokers`, std = `Chlamydia Rate`, YPLL)
-
-county_tobacco_sex_df = reliable_data %>%
-  group_by(State, County) %>%
-  rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
-  summarise(county_class, smoke = `% Smokers`, std = `Chlamydia Rate`, YPLL, Population) %>%
+  summarise(
+            #Alcohol/Drug
+            drink_per = `% Excessive Drinking`, dui_per = `% Driving Deaths with Alcohol Involvement`, 
+            #food/exercise
+            food_index = `Food Environment Index`, inactive_per = `% Physically Inactive`, 
+            exercise_access_per = `% With Access to Exercise Opportunities`, food_per = `% Food Insecure`, 
+            healthy_access_per = `% Limited Access to Healthy Foods`, obesity_rate = `% Adults with Obesity`,
+            #tobacco
+            smoke = `% Smokers`,
+            #sex
+            std = `Chlamydia Rate`,
+            #response
+            YPLL,
+            #Cluster
+            county_class = as.factor(county_class),
+            #Population
+            Population) %>%
   na.omit()
 
-#map
-plot_usmap(data = state_tobacco_sex_df, values = "smoke", color = "black") + 
-  scale_fill_continuous(name = "% Smokers (2020)",  low = "white", high = "red",  
-                        label = scales::comma) + 
-  theme(legend.position = "right") +
-  labs(title = "")
+#Create parsing filters for pred map function
+#simple --> label --> varname
+pred_options = c("Excessive Drinking", "DUI", "Food Index", "Inactivity", "Exercise Opportunity", "Food Insecurity", "Healthy Food Access",
+                 "Obesity", "Smoking", "STI") %>% sort()
 
-#plot against YPLL (State) cor = 0.82
-ggplot(state_tobacco_sex_df, aes(y = YPLL, x = smoke)) +
-  geom_point(alpha = 0.25) + #geom_smooth(se = F, method = "lm") +
-  theme_bw() +
-  labs(title = "YPLL Increases As Smoking Prevelance Increases", y = "Years of Potential Life Lost (YPLL)", x = "% Smokers")
+simple_to_label = function(x){
+  
+  label = case_when(
+    x == "Excessive Drinking" ~ "% Excessive Drinking",
+    x == "DUI" ~ "% Driving Deaths with Alcohol Involvement",
+    x == "Food Index" ~ "Food Environment Index",
+    x == "Inactivity" ~ "% Physically Inactive",
+    x == "Exercise Opportunity" ~ "% With Access to Exercise Opportunities",
+    x == "Food Insecurity" ~ "% Food Insecure",
+    x == "Healthy Food Access" ~ "% Limited Access to Healthy Foods",
+    x == "Obesity" ~ "% Adults with Obesity",
+    x == "Smoking" ~ "% Smokers",
+    x == "STI"~ "Chlamydia Rate"
+  )
+  
+}
 
-#plot against YPLL (County) cor = 0.74
-ggplot(county_tobacco_sex_df, aes(x = YPLL, y = smoke, color = county_class)) +
-  geom_point(alpha = 0.25) + #geom_smooth(se = F, method = "lm") +
-  theme_bw() +
-  geom_smooth(method = "lm", se = F) +
-  labs(title = "YPLL Increases As Smoking Prevelance Increases", x = "Years of Potential Life Lost (YPLL)", y = "% Smokers",
-       color = "County Class")
+
+label_to_varname = function(x){
+  
+    varname = case_when(
+    x == "% Excessive Drinking" ~ "drink_per",
+    x == "% Driving Deaths with Alcohol Involvement" ~ "dui_per",
+    x == "Food Environment Index" ~ "food_index",
+    x == "% Physically Inactive" ~ "inactive_per",
+    x == "% With Access to Exercise Opportunities" ~ "exercise_access_per",
+    x == "% Food Insecure" ~ "food_per",
+    x == "% Limited Access to Healthy Foods" ~ "healthy_access_per",
+    x == "% Adults with Obesity" ~ "obesity_rate",
+    x == "% Smokers" ~ "smoke",
+    x == "Chlamydia Rate" ~ "std"
+  )
+    varname
+}
 ```
 
-#### Sex
 
 ```{r}
-#map
-plot_usmap(data = state_tobacco_sex_df, values = "std", color = "black") + 
-  scale_fill_continuous(name = "# Chlamydia Cases (2020)",  low = "white", high = "red",  
-                        label = scales::comma) + 
-  theme(legend.position = "right") +
-  labs(title = "")
+pred_map = function(df = state_pred_df, pred, limit_set = c(), region = '') {
+  
+  #Simple to label
+  label_x = simple_to_label(pred)
+  
+  #Label to varname
+  varname = label_to_varname(label_x)
+  
+  #Expand region input so it is readable in plot
+  filter_region = expand_region(region)
 
-#plot against smoke (State)
-ggplot(state_tobacco_sex_df, aes(x = std, y = smoke)) +
-  geom_point(alpha = 0.25) + geom_smooth(se = F, method = "lm") + #no relationship
-  theme_bw() +
-  labs(title = "No Relationship Between Smoking and STD Prevelance", x = "Chlamydia Rate", y = "% Smokers")
+  plot_usmap(data = df, values = varname, color = "black", include = filter_region) + 
+  scale_fill_continuous(low = "white", high = "red", name = label_x, label = scales::comma, limits = limit_set) + 
+  theme(legend.position = "right",
+        legend.key.size = unit(10, 'mm')) +
+  labs(title = "") #Race_Type
 
-#plot against smoke (County)
-ggplot(county_tobacco_sex_df, aes(x = std, y = smoke, color = county_class)) +
-  geom_point(alpha = 0.25) + geom_smooth(se = F, method = "lm") + #no relationship
-  theme_bw() +
-  labs(title = "County Level By Class Suggests Relationship", x = "Chlamydia Rate", y = "% Smokers", color = "County Class")
+}
 
-#plot against YPLL (State) cor = 0.37
-ggplot(state_tobacco_sex_df, aes(y = YPLL, x = std)) +
-  geom_point(alpha = 0.25) + geom_smooth(se = F, method = "lm") + #weak positive relationship
-  theme_bw() +
-  labs(title = "YPLL Increases Slightly As Chlamydia Rate Increases", x = "Years of Potential Life Lost (YPLL)", y = "Chlamydia Rate")
-
-#plot against YPLL (County) cor = 0.24
-ggplot(county_tobacco_sex_df, aes(y = YPLL, x = std, color = county_class)) +
-  geom_point(alpha = 0.25) + geom_smooth(se = F, method = "lm") +
-  theme_bw() +
-  labs(title = "YPLL Increases Slightly As Chlamydia Rate Increases", x = "Years of Potential Life Lost (YPLL)", y = "Chlamydia Rate", 
-       color = "County Class")
+pred_map(pred = "Excessive Drinking", region = "West")
+pred_map(pred = "DUI", region = "South")
+pred_map(pred = "Food Index", region = "Northeast")
+pred_map(pred = "Inactivity", region = "Midwest")
+pred_map(pred = "STI", region = "All")
 ```
-
-#### Alcohol/Drug & Diet/Exercise
 
 ```{r}
 county_pred_df = reliable_data %>%
@@ -529,17 +463,83 @@ county_pred_df = reliable_data %>%
             Population) %>%
   na.omit() 
 
-library(GGally)
-
 county_num_df = county_pred_df[ ,!sapply(county_pred_df, is.character)] %>%
   relocate(YPLL, .before = drink_per)
 
 # end = length(county_num_df)
 # half = (end/2) %>% ceiling()
-# 
+# library(GGally)
 # ggpairs(county_num_df[,c(1:half)])
 # ggpairs(county_num_df[,c(1,half:end)])
 # cor(county_num_df[,-c(end-1,)]) %>% round(2)
+```
+
+### Bivariate Analysis
+```{r}
+#response vs pred
+ypll_smoke = ggplot(county_pred_df, aes(y = YPLL, x = smoke)) +
+  geom_point(alpha = 0.25) +
+  theme_bw() +
+  geom_smooth(se = F) +
+  labs(y = "YPLL", x = "% Smokers") #title = "YPLL Increases As Smoking Prevelance Increases"
+
+ypll_drink = ggplot(county_pred_df, aes(y = YPLL, x = drink_per)) +
+  geom_point(alpha = 0.25) +
+  theme_bw() +
+  geom_smooth(se = F) +
+  labs(y = "YPLL", x = "% Excessive Drinking") #title = "YPLL Decreases As Smoking Prevelance Increases"
+
+ypll_food = ggplot(county_pred_df, aes(y = YPLL, x = food_per)) +
+  geom_point(alpha = 0.25) +
+  theme_bw() +
+  geom_smooth(se = F) +
+  labs(y = "YPLL", x = "% Food Insecure") #title = "YPLL Increases As Food Insecurity Increases"
+
+ypll_obesity = ggplot(county_pred_df, aes(y = YPLL, x = obesity_rate)) +
+  geom_point(alpha = 0.25) +
+  theme_bw() +
+  geom_smooth(se = F) +
+  labs(y = "YPLL", x = "% Adults with Obesity") #title = "YPLL Increases As Obesity Levels Increases"
+
+ypll_countyclass = ggplot(county_pred_df, aes(y = YPLL, x = county_class)) +
+  geom_violin() +
+  geom_boxplot(width = .2, alpha = 0.25) +
+  scale_x_discrete(limits = c("Urban", "Suburban", "Rural")) +
+  theme_bw() +
+  labs(y = "YPLL", x = "County Type") #title = "YPLL Variability Increase as County Population Decreases"
+
+library(cowplot)
+plot_grid(ypll_drink, ypll_smoke,ypll_food, ypll_obesity, 
+          ncol = 2, labels = c('A', 'B', 'C', 'D'), label_fontface = 'bold',label_size = 11)
+```
+
+```{r}
+#YPLL vs Predictors colored by county class
+ypll_countyclass #violin overlay on box plot, variability limitation in YPLL calculation for low pop counties
+```
+
+```{r}
+#Pred vs pred
+food_obesity = ggplot(county_pred_df, aes(y = food_per, x = obesity_rate)) +
+  geom_point(alpha = 0.25) +
+  geom_smooth(se = F) +
+  theme_bw() +
+  labs(y = "% Food Insecure", x = "% Adults with Obesity") #title = "Positive Relationship Between Obesity and Food Insecurity"
+
+food_drink = ggplot(county_pred_df, aes(y = food_per, x = drink_per)) +
+  geom_point(alpha = 0.25) +
+  geom_smooth(se = F) +
+  theme_bw() +
+  labs(y = "% Food Insecure", x = "% Excessive Drinking") #title = "Inverse Relationship Between Food Insecurity and Excessive Drinking"
+
+smoke_dui = ggplot(county_pred_df, aes(y = smoke, x = dui_per)) +
+  geom_point(alpha = 0.25) +
+  geom_smooth(se = F) +
+  theme_bw() +
+  labs(y = "% Smokers", x = "% Driving Deaths with Alcohol Involvement") #title = "No Relationship Between Smoking and Alcohol Driving Deaths"
+
+plot_grid(food_obesity, food_drink, smoke_dui, 
+          ncol = 2, labels = c('A', 'B', 'C'), label_fontface = 'bold', label_size = 11)
 ```
 
 # Modeling
@@ -550,109 +550,30 @@ Lasso, Ridge, Elastic Net (Deal with correlation especially across diet/exercise
 
 ```{r}
 library(glmnet)
-
-#convert data to x and y matrices
-dummy_df = county_num_df %>%
-  mutate(urban = ifelse(county_class == 'Urban', 1, 0),
-         suburban = ifelse(county_class == 'Suburban', 1, 0),
-         rural = ifelse(county_class == 'Rural', 1, 0)) %>%
-  select(-county_class)
-
-x_matrix = dummy_df %>% #how is county_class being treated in regularization techniques
-  select(-c(YPLL)) %>% 
-  as.matrix()
-
-y_matrix = county_pred_df$YPLL
-```
-
-```{r, include=F}
-#Initial lm
 library(broom)
 
-init_reg_fit <- lm(YPLL ~ ., dummy_df)
+#Regularization Modeling
+#stratified cv (e.g., randomly assign 1:5 across all counties within each state)
+strat_cv = function(df_input, k = 5, seed = 123){
+  
+  set.seed(seed)
+  state_list = unique(df_input$state)
+  strat_df = data.frame()
 
-tidy(init_reg_fit) %>%
-  mutate(coef_sign = as.factor(sign(estimate)),
-         term = fct_reorder(term, estimate)) %>%
-  ggplot(aes(x = term, y = estimate, fill = coef_sign)) +
-  geom_bar(stat = "identity", color = "white") +
-  scale_fill_manual(values = c("darkred", "darkblue"), 
-                    guide = FALSE) +
-  coord_flip() + 
-  theme_bw()
-```
+  for (i in 1:length(state_list)){
+    df = filter(df_input, state == state_list[i])
+    new_df = mutate(df, test_fold = sample(1:k, replace = T, size = nrow(df)))
+    strat_df = rbind(strat_df, new_df)
+  }
+  
+  strat_df %>% ungroup() %>% select(-c(state, County))
+}
 
-```{r, include=F}
-#Ridge
-#Shrinkage Plot
-init_ridge_fit <- glmnet(x_matrix, y_matrix, alpha = 0)#<<
-plot(init_ridge_fit, xvar = "lambda")
-
-#Lamda Tuning Plot
-fit_ridge_cv <- cv.glmnet(x_matrix, y_matrix, alpha = 0) #<<
-plot(fit_ridge_cv)
-
-#Coefficient
-tidy_ridge_coef <- tidy(fit_ridge_cv$glmnet.fit)
-
-tidy_ridge_coef %>%
-  filter(lambda == fit_ridge_cv$lambda.1se) %>%
-  mutate(coef_sign = as.factor(sign(estimate)),
-         term = fct_reorder(term, estimate)) %>%
-  ggplot(aes(x = term, y = estimate, fill = coef_sign)) +
-  geom_bar(stat = "identity", color = "white") +
-  scale_fill_manual(values = c("darkred", "darkblue"), guide = "none") +
-  coord_flip() + 
-  theme_bw()
-```
-
-```{r, include=F}
-#Lasso
-fit_lasso_cv <- cv.glmnet(x_matrix, y_matrix, 
-                          alpha = 1) #<<
-plot(fit_lasso_cv)
-
-tidy_lasso_coef <- tidy(fit_lasso_cv$glmnet.fit)
-
-tidy_lasso_coef %>%
-  ggplot(aes(x = lambda, y = estimate, 
-             group = term)) +
-  scale_x_log10() +
-  geom_line(alpha = 0.75) +
-  geom_vline(xintercept = 
-               fit_lasso_cv$lambda.min) +
-  geom_vline(xintercept = 
-               fit_lasso_cv$lambda.1se, 
-             linetype = "dashed", color = "red") +
-  theme_bw()
-
-tidy_lasso_cv <- tidy(fit_lasso_cv)
-
-tidy_lasso_cv %>%
-  ggplot(aes(x = lambda, y = nzero)) +
-  geom_line() +
-  geom_vline(xintercept = fit_lasso_cv$lambda.min) +
-  geom_vline(xintercept = fit_lasso_cv$lambda.1se, 
-             linetype = "dashed", color = "red") +
-  scale_x_log10() + theme_bw()
-
-tidy_lasso_coef %>%
-  filter(lambda == fit_lasso_cv$lambda.1se) %>%
-  mutate(coef_sign = as.factor(sign(estimate)),
-         term = fct_reorder(term, estimate)) %>%
-  ggplot(aes(x = term, y = estimate, 
-             fill = coef_sign)) +
-  geom_bar(stat = "identity", color = "white") +
-  scale_fill_manual(values = c("darkred", "darkblue"), 
-                    guide = 'none') +
-  coord_flip() +
-  theme_bw()
-```
-
-```{r}
-#Compare Model Performances based on test RMSE
-set.seed(1)
-cv_df <- dummy_df %>% mutate(test_fold = sample(rep(1:5, length.out = n())))
+cv_df <- strat_cv(df_input = county_pred_df) %>%
+    mutate(urban = ifelse(county_class == 'Urban', 1, 0), #transform county_class to dummy
+            suburban = ifelse(county_class == 'Suburban', 1, 0),
+            rural = ifelse(county_class == 'Rural', 1, 0)) %>%
+  select(-c(county_class, Population))
 
 holdout_predictions <- 
   map_dfr(unique(cv_df$test_fold), 
@@ -680,17 +601,21 @@ holdout_predictions <-
                    test_actual = test_data$YPLL, test_fold = holdout) 
           })
 
-holdout_predictions %>%
+reg_cv = holdout_predictions %>%
   pivot_longer(lm_preds:en_preds, 
                names_to = "type", values_to = "test_preds") %>%
   group_by(type, test_fold) %>%
   summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>% 
+  mutate(type = recode(type, 'en_preds' = 'Elastic Net' , 'lasso_preds' =  'Lasso','ridge_preds' = 'Ridge', 'lm_preds' = 'Linear')) %>%
   ggplot(aes(x = type, y = rmse)) + 
-  geom_point() + theme_bw() +
+  geom_point() + 
+  scale_x_discrete(limits = c("Linear", "Lasso","Elastic Net", "Ridge")) + 
+  theme_bw() +
   stat_summary(fun = mean, geom = "point", 
                color = "red") + 
   stat_summary(fun.data = mean_se, geom = "errorbar",
-               color = "red")
+               color = "red") +
+  labs(y = "RMSE", x = "Model Type", title = "Linear Regression Outperforms Regularization Techniques")
 ```
 
 ## Model Design
@@ -705,24 +630,7 @@ lm_mod = lm(YPLL ~ std + smoke + food_per + drink_per + county_class, data = cou
 
 #autoplot(lm_mod, ncol = 2) + theme_bw() #mod assumptions
 
-summary(lm_mod) #Output
-```
-
-### Mixed Effects Model
-
-```{r}
-library(lme4) #mixed model library
-
-#(1 | county_class) allows the intercept to vary by county_class, Random intercept model
-mixed_mod = lmer(YPLL ~ std + smoke + food_per + (1 | county_class), data = county_num_df)
-
-#Random slope model (#random slope look for group structure in y vs x)
-#mixed_mod = lmer(YPLL ~ smoke + std + (smoke | county_class), data = county_tobacco_sex_df)
-
-#Random slope and random intercept model
-#mixed_mod = lmer(YPLL ~ smoke + std + (1 + smoke | county_class), data = county_tobacco_sex_df)
-
-summary(mixed_mod) #why fixed effects are dif than in linear mod
+#summary(lm_mod) #Output
 ```
 
 ### GAM
@@ -730,78 +638,14 @@ summary(mixed_mod) #why fixed effects are dif than in linear mod
 ```{r}
 library(caret)
 library(mgcv)
-
-#Train/Test Data
-set.seed(1)
-parts = createDataPartition(county_num_df$YPLL, p = .7, list = F) #70/30 split
-train = county_num_df[parts, ]
-test = county_num_df[-parts, ]
-
-test_x = select(test, -YPLL) # feature and target array
-test_y = select(test, YPLL)
-
-#Train gam model
-#Tuning Parameters: Number of basis functions, # knots
-gam_model = gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_per) + s(exercise_access_per) + s(food_per) + 
-                  s(healthy_access_per) + s(obesity_rate) + s(smoke) + s(std) + as.factor(county_class), 
-                data = train, 
-                method = "REML")
-
-summary(gam_model)
-```
-
-### Tree Based Model
-
-```{r}
-#Given the linear relationships in the data, the tree based method didn't outperform lm and under performed GAM
-library(gbm)
-
-#Train GBM Model
-model_gbm = gbm(train$YPLL ~.,
-                data = train,
-                distribution = "gaussian",
-                cv.folds = 10,
-                shrinkage = .1,
-                n.minobsinnode = 10,
-                n.trees = 250,
-                verbose = F)
- 
-#print(model_gbm)
-
-summary(model_gbm)
-
-# #Test Set Predictions
-# pred_y = predict.gbm(model_gbm, test_x)
-# 
-# #Calculate LOSS
-# residuals = test_y - pred_y
-# RMSE = residuals^2 %>% unlist() %>% as.numeric() %>% mean() %>% sqrt()
-# RMSE
 ```
 
 ## Model Validation
 
-Perform k-Fold CV on counties within States to limit the chance of having a fold over or under representing a particular state
-e.g., randomly assign 1:5 across all counties within each state
-
 ```{r}
+#GAM Modeling
 #stratified k fold
-strat_cv = function(k = 5, seed = 123){
-  
-  set.seed(seed)
-  state_list = unique(county_pred_df$state)
-  strat_df = data.frame()
-
-  for (i in 1:length(state_list)){
-    df = filter(county_pred_df, state == state_list[i])
-    new_df = mutate(df, test_fold = sample(1:k, replace = T, size = nrow(df)))
-    strat_df = rbind(strat_df, new_df)
-  }
-  
-  strat_df %>% ungroup() %>% select(-c(state, County))
-}
-
-strat_cv_df = strat_cv(5)
+strat_cv_df = strat_cv(df_input = county_pred_df)
 
 #Calculate holdout predictions
 holdout_predictions <- 
@@ -814,15 +658,12 @@ holdout_predictions <-
           
             # Train models:
             lm_model <- lm(YPLL ~ ., data = train_data)
-            simple_lm_model <- lm(YPLL ~ std + smoke + food_per + drink_per + county_class, data = train_data)
+            
             gam_model <- gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_per) + s(exercise_access_per) + s(food_per) +
                             s(healthy_access_per) + s(obesity_rate) + s(smoke) + s(std) + as.factor(county_class), 
                             data = train_data, 
                             method = "REML")
-            pop_gam_model <-  gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
-                                     s(Population),
-                                     data = train_data, 
-                                     method = "REML")
+
             simple_gam_model <-  gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
                                      as.factor(county_class),
                                      data = train_data, 
@@ -830,36 +671,31 @@ holdout_predictions <-
 
             # Return tibble of holdout results:
             tibble(lm_preds = predict(lm_model, newdata = test_data), #linear model
-                   simple_lm_preds = predict(simple_lm_model, newdata = test_data),
                    gam_preds = predict(gam_model, newdata = test_data), #gam model
-                   pop_gam_preds = predict(pop_gam_model, newdata = test_data),
                    simple_gam_preds = predict(simple_gam_model, newdata = test_data),
                    test_actual = test_data$YPLL, test_fold = holdout)
           })
 
-holdout_predictions %>%
+gam_cv = holdout_predictions %>%
   pivot_longer(lm_preds:simple_gam_preds, 
                names_to = "type", values_to = "test_preds") %>%
   group_by(type, test_fold) %>%
-  summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>% 
+  summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>%
+  mutate(type = recode(type, 'gam_preds' = 'Full GAM' , 'simple_gam_preds' =  'Simple GAM', 'lm_preds' = 'Linear')) %>%
   ggplot(aes(x = type, y = rmse)) + 
-  geom_point() + theme_bw() +
+  geom_point() + 
+  scale_x_discrete(limits = c("Simple GAM", "Full GAM", "Linear")) + 
+  theme_bw() +
   stat_summary(fun = mean, geom = "point", 
                color = "red") + 
   stat_summary(fun.data = mean_se, geom = "errorbar",
                color = "red") +
-  labs(y = "RMSE", x = "Model Type")
-
-#Note use fct_recode to change labels easy in dplyr
-#e.g., fct_recode(next_score_type, "-Field Goal (-3)" = "Opp_Field_Goal")
+  labs(y = "RMSE", x = "Model Type", title = "Simple GAM Outperforms Full GAM and Linear Models")
 ```
 
 Simple gam (7 features) performs outperforms gam with all 11 features within intervals. For simplicity and performance in potential Shiny App interface simple gam seems to be the way to go.
 
 Interesting is that population instead of county_class outperforms very slightly, which is to be expected especially in GAM bc we lose some variability in information when transforming population to 3 county classes
-
-
-#HELPPP: How can I do variable importance plot with gam?
 
 ```{r}
 #Fitted vs Residuals for final model
@@ -889,8 +725,8 @@ final_df = reliable_data %>%
 #Train/Test set
 set.seed(1)
 parts = createDataPartition(final_df$YPLL, p = .7, list = F) #70/30 split
-train = county_num_df[parts, ]
-test = county_num_df[-parts, ]
+train = final_df[parts, ]
+test = final_df[-parts, ]
 
 plot_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
                          as.factor(county_class), #alternative: s(Population)
@@ -900,11 +736,14 @@ plot_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s
 y_actual = test$YPLL
 y_fitted = predict(plot_gam_model, test)
 
-data.frame(y_actual, y_fitted) %>%
+fin_mod = data.frame(y_actual, y_fitted) %>%
   ggplot(., aes(x = y_actual, y = y_fitted)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.25) +
   geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
   coord_equal() +
+  scale_x_continuous(breaks = seq(0, 25000, 5000)) +
+  theme_bw() +
+  geom_smooth(se = F) +
   labs(x = "Actual", y = "Predicted")
 ```
 
@@ -915,28 +754,42 @@ final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + 
                       data = final_df, 
                       method = "REML")
 
-summary(final_gam_model)
+#summary(final_gam_model)
 ```
 
-# Conclusions
+```{r}
+#Allegheny Info
+filter(final_df, County == "Allegheny")
 
-# To Do: (1) Shiny App, (2) Publish Shiny 
+# Pennsylvania,	Allegheny	
+# county_class: Urban
+# inactive_per: 24
+# obesity_rate: 29
+# food_per: 11
+# drink_per: 23
+# smoke: 19
+# std: 520
 
-For EDA, show YPLL map distribution then show relationship with predictors (e.g., smoke, food) then show relationship between predictors to demonstrate some independence but also some correlation (especially between the food predictors). Then go to methods practices
+# YPLL: 7699.26	
+```
 
+# To Do: (1) VIP/Inference/Assumptions for GAM, (2) Publish Shiny 
+# Tooltip not working, may be some interaction issues with the theme
+# Make plot 1 title a h4 header element
 # Shiny App
 
-#HELP: Should I add VIP for GAM model in pred panel, change size of tabpanel titles
 ```{r}
 library(shiny)
 library(shinyBS)
 library(bslib) #theme
 library(hablar) #retype()
+library(formattable)#comma()
 
 county_options = c("Urban", "Suburban", "Rural") %>% sort()
 demo_options = c("All", "Asian", "Black", "Hispanic", "Native American", "White") %>% sort()
 region_options = c('All',"Northeast", "Midwest", "South", "West") %>% sort()
 df_names = c("county_class", "inactive_per", "obesity_rate", "food_per", "drink_per", "smoke", "std")
+pred_options = c("Excessive Drinking", "Inactivity", "Food Insecurity", "Obesity", "Smoking", "STI") %>% sort()
 ```
 
 ```{r}
@@ -973,7 +826,7 @@ ui = navbarPage(title = div(img(
                 numericInput(inputId = "inactive_per", label = "Inactivity %:", value = 0, min = 0, max = 100, step = 0.1),
                 numericInput(inputId = "obesity_rate", label = "Obesity %:", value = 0, min = 0, max = 100, step = 0.1),
                 numericInput(inputId = "food_per", label = "Food Insecure %:", value = 0, min = 0, max = 100, step = 0.1),
-                numericInput(inputId = "drink_per", label = "Physically Inactive %:", value = 0, min = 0, max = 100, step = 0.1),
+                numericInput(inputId = "drink_per", label = "Excessive Drinking %:", value = 0, min = 0, max = 100, step = 0.1),
                 numericInput(inputId = "smoke", label = "Smoking %:", value = 0, min = 0, max = 100, step = 0.1),
                 numericInput(inputId = "std", label = "Chlamydia Cases:", value = 0, min = 0, max = 5000, step = 0.1),
                 
@@ -988,17 +841,20 @@ ui = navbarPage(title = div(img(
                 bsTooltip(id = "std", title = "Number of Chlamydia Cases per 100k")
              ),
              
-            mainPanel(uiOutput("text1"),
+            mainPanel(plotOutput("plot1"),
+                      uiOutput("text1"),
               tags$head(tags$style("#text1{color: black;
-                                 font-size: 20px;
-                                 line-height: 5.0;
-                                 text-indent: 20px;
+                                 font-size: 22px;
+                                 line-height: 22.0;
+                                 text-indent: 37px;
                                  }"
                          )))
 
              ))),
   
-    tabPanel(title = "Interactive Map",
+    navbarMenu("Interactive Map",
+               
+    tabPanel(title = "Premature Deaths",
              
     fluidPage(
         
@@ -1007,14 +863,37 @@ ui = navbarPage(title = div(img(
         sidebarLayout(
         sidebarPanel( 
             selectInput(inputId = "demo", label = "Race:", choices = demo_options),
-            selectInput(inputId = "region", label = "Region:", choices = region_options) #optional addition
+            selectInput(inputId = "region", label = "Region:", choices = region_options), #optional addition
+            
+            actionButton(inputId = "go_response", label = "Update")
             ),
       
         mainPanel(
-          plotOutput("plot1"))
+          plotOutput("plot2"))
         ))         
              
-  ))
+  ),
+
+    tabPanel(title = "Health Behaviors",
+             
+    fluidPage(
+        
+        titlePanel(title = h2("Premature Deaths Map", align = "center")),
+        
+        sidebarLayout(
+        sidebarPanel( 
+            selectInput(inputId = "pred", label = "Health Behavior:", choices = pred_options),
+            selectInput(inputId = "region_pred", label = "Region:", choices = region_options), #optional addition
+            
+            actionButton(inputId = "go_pred", label = "Update")
+            ),
+      
+        mainPanel(
+          plotOutput("plot3"))
+        ))         
+             
+  )
+))
 ```
 
 ```{r}
@@ -1034,7 +913,7 @@ server = function(input,output){
   
   #Get predictions
   shiny_pred <- reactive({
-    predict(final_gam_model, newdata = shiny_df()) %>% round(2)
+    predict(final_gam_model, newdata = shiny_df()) %>% comma(., digits = 2) #add comma to thousand and round by 2
   })
   
   #Text output
@@ -1046,12 +925,29 @@ server = function(input,output){
   output$text1 <- renderUI({pred_reactive()})
   
   #Plot output
-  output$plot1 <- renderPlot({
+  ypll_plot_1 <- eventReactive(input$go, {
+    ypll_hist(pred_value = as.numeric(shiny_pred()))
+    })
     
-    demo_map(Race_Type = input$demo, region = input$region)
-  }, 
-  height = 650, width = 1100)
+  output$plot1 <- renderPlot({
+    ypll_plot_1()
+  }, height = 600, width = 1000)
   
+  response_plot <- eventReactive(input$go_response, {
+    demo_map(Race_Type = input$demo, region = input$region)
+    })
+  
+  output$plot2 <- renderPlot({
+    response_plot()
+  }, height = 650, width = 1100)
+  
+  pred_plot <- eventReactive(input$go_pred, {
+    pred_map(pred = input$pred, region = input$region_pred)
+    })
+  
+  output$plot3 <- renderPlot({
+    pred_plot()
+  }, height = 650, width = 1100)
 }
 ```
 
