@@ -775,7 +775,7 @@ filter(final_df, County == "Allegheny")
 
 # To Do: (1) VIP/Inference/Assumptions for GAM, (2) Publish Shiny 
 # Tooltip not working, may be some interaction issues with the theme
-# Make plot 1 title a h4 header element
+# Make plot 1 title a h4 header element, reduce width of plots bc browser view is zoomed in, apply browser title (prob in navbarpage)
 # Shiny App
 
 ```{r}
