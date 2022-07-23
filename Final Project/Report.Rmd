@@ -1,7 +1,8 @@
 ---
 title: "Premature Death Prediction Model Using Health Behavior Data"
-output: html_document
+author: 'Donald Dinerman, Masara Greenidge, Suron Lockett'
 date: '2022-07-22'
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -90,24 +91,28 @@ county_pred_df = reliable_data %>%
 
 ypll_smoke = ggplot(county_pred_df, aes(y = YPLL, x = smoke)) +
   geom_point(alpha = 0.25) +
+  scale_y_continuous(label = scales::comma) +
   theme_bw() +
   geom_smooth(se = F) +
   labs(y = "YPLL", x = "% Smokers") #title = "YPLL Increases As Smoking Prevelance Increases"
 
 ypll_drink = ggplot(county_pred_df, aes(y = YPLL, x = drink_per)) +
   geom_point(alpha = 0.25) +
+  scale_y_continuous(label = scales::comma) +
   theme_bw() +
   geom_smooth(se = F) +
   labs(y = "YPLL", x = "% Excessive Drinking") #title = "YPLL Decreases As Smoking Prevelance Increases"
 
 ypll_food = ggplot(county_pred_df, aes(y = YPLL, x = food_per)) +
   geom_point(alpha = 0.25) +
+  scale_y_continuous(label = scales::comma) +
   theme_bw() +
   geom_smooth(se = F) +
   labs(y = "YPLL", x = "% Food Insecure") #title = "YPLL Increases As Food Insecurity Increases"
 
 ypll_obesity = ggplot(county_pred_df, aes(y = YPLL, x = obesity_rate)) +
   geom_point(alpha = 0.25) +
+  scale_y_continuous(label = scales::comma) +
   theme_bw() +
   geom_smooth(se = F) +
   labs(y = "YPLL", x = "% Adults with Obesity") #title = "YPLL Increases As Obesity Levels Increases"
@@ -116,6 +121,7 @@ ypll_countyclass = ggplot(county_pred_df, aes(y = YPLL, x = county_class)) +
   geom_violin() +
   geom_boxplot(width = .2, alpha = 0.25) +
   scale_x_discrete(limits = c("Urban", "Suburban", "Rural")) +
+  scale_y_continuous(label = scales::comma) +
   theme_bw() +
   labs(y = "YPLL", x = "County Type") #title = "YPLL Variability Increase as County Population Decreases"
 ```
@@ -142,17 +148,27 @@ smoke_dui = ggplot(county_pred_df, aes(y = smoke, x = dui_per)) +
 
 ```{r}
 #Regularization Modeling
-county_num_df = county_pred_df[ ,!sapply(county_pred_df, is.character)] %>%
-  relocate(YPLL, .before = drink_per)
+#stratified cv
+strat_cv = function(df_input, k = 5, seed = 123){
+  
+  set.seed(seed)
+  state_list = unique(df_input$state)
+  strat_df = data.frame()
 
-dummy_df = county_num_df %>%
-  mutate(urban = ifelse(county_class == 'Urban', 1, 0),
-         suburban = ifelse(county_class == 'Suburban', 1, 0),
-         rural = ifelse(county_class == 'Rural', 1, 0)) %>%
-  select(-county_class)
+  for (i in 1:length(state_list)){
+    df = filter(df_input, state == state_list[i])
+    new_df = mutate(df, test_fold = sample(1:k, replace = T, size = nrow(df)))
+    strat_df = rbind(strat_df, new_df)
+  }
+  
+  strat_df %>% ungroup() %>% select(-c(state, County))
+}
 
-set.seed(1)
-cv_df <- dummy_df %>% mutate(test_fold = sample(rep(1:5, length.out = n())))
+cv_df <- strat_cv(df_input = county_pred_df) %>%
+    mutate(urban = ifelse(county_class == 'Urban', 1, 0), #transform county_class to dummy
+            suburban = ifelse(county_class == 'Suburban', 1, 0),
+            rural = ifelse(county_class == 'Rural', 1, 0)) %>%
+  select(-c(county_class, Population))
 
 holdout_predictions <- 
   map_dfr(unique(cv_df$test_fold), 
@@ -188,7 +204,8 @@ reg_cv = holdout_predictions %>%
   mutate(type = recode(type, 'en_preds' = 'Elastic Net' , 'lasso_preds' =  'Lasso','ridge_preds' = 'Ridge', 'lm_preds' = 'Linear')) %>%
   ggplot(aes(x = type, y = rmse)) + 
   geom_point() + 
-  scale_x_discrete(limits = c("Linear", "Ridge", "Lasso", "Elastic Net")) + 
+  scale_x_discrete(limits = c("Linear", "Lasso","Elastic Net", "Ridge")) + 
+  scale_y_continuous(label = scales::comma) +
   theme_bw() +
   stat_summary(fun = mean, geom = "point", 
                color = "red") + 
@@ -199,24 +216,8 @@ reg_cv = holdout_predictions %>%
 
 ```{r}
 #GAM Modeling
-
 #stratified k fold
-strat_cv = function(k = 5, seed = 123){
-  
-  set.seed(seed)
-  state_list = unique(county_pred_df$state)
-  strat_df = data.frame()
-
-  for (i in 1:length(state_list)){
-    df = filter(county_pred_df, state == state_list[i])
-    new_df = mutate(df, test_fold = sample(1:k, replace = T, size = nrow(df)))
-    strat_df = rbind(strat_df, new_df)
-  }
-  
-  strat_df %>% ungroup() %>% select(-c(state, County))
-}
-
-strat_cv_df = strat_cv(5)
+strat_cv_df = strat_cv(df_input = county_pred_df)
 
 #Calculate holdout predictions
 holdout_predictions <- 
@@ -256,6 +257,7 @@ gam_cv = holdout_predictions %>%
   ggplot(aes(x = type, y = rmse)) + 
   geom_point() + 
   scale_x_discrete(limits = c("Simple GAM", "Full GAM", "Linear")) + 
+  scale_y_continuous(label = scales::comma) +
   theme_bw() +
   stat_summary(fun = mean, geom = "point", 
                color = "red") + 
@@ -290,8 +292,8 @@ final_df = reliable_data %>%
 #Train/Test set
 set.seed(1)
 parts = createDataPartition(final_df$YPLL, p = .7, list = F) #70/30 split
-train = county_num_df[parts, ]
-test = county_num_df[-parts, ]
+train = final_df[parts, ]
+test = final_df[-parts, ]
 
 plot_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
                          as.factor(county_class), #alternative: s(Population)
@@ -306,6 +308,8 @@ fin_mod = data.frame(y_actual, y_fitted) %>%
   geom_point(alpha = 0.25) +
   geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
   coord_equal() +
+  scale_x_continuous(breaks = seq(0, 25000, 5000), label = scales::comma) +
+  scale_y_continuous(label = scales::comma) +
   theme_bw() +
   geom_smooth(se = F) +
   labs(x = "Actual", y = "Predicted")
@@ -409,11 +413,11 @@ plot_grid(food_obesity, food_drink, smoke_dui,
 
 ## Methods
 
-Given the relatively linear relationships discovered in our EDA, we first explored linear regression, general additive models (GAM), and regularization techniques.
+Given the relatively linear relationships discovered in our EDA, we explored linear regression, general additive models (GAM), and regularization techniques.
 
 ### Regularization Techniques
 
-We first explored the performance of linear regression model using all 13 features compared to a lasso, ridge, and elastic net techniques. Using 5-fold cross validation, we evaluated model performance on predicting YPLL using root mean squared error (RMSE) as our cost function.
+We first explored the performance of linear regression model using all 13 features compared to a lasso, ridge, and elastic net techniques. Using 5-fold stratified cross validation, we evaluated model performance on predicting YPLL using root mean squared error (RMSE) as our cost function. Using stratified cross validation ensures that relative county frequencies within group (i.e., state) is approximately preserved in each train and validation fold.
 
 ```{r}
 #CV Plot
@@ -424,7 +428,7 @@ Despite the purpose of using regularization approaches being to reduce overfitti
 
 ### General Additive Model
 
-GAM are flexible models that are sure to outperform the linear regression because it could capture both linear and nonlinear relationships with its basis functions. We initially built a GAM on the same 13 predictors as the linear regression model. After performing feature selection, we also constructed a simplified GAM using only 7 of the most important features. We then performed 5-fold cross validation to compare the performances of the linear regression, full GAM, and simplified GAM using RMSE.
+GAM are flexible models that are sure to outperform the linear regression because it could capture both linear and nonlinear relationships with its basis functions. We initially built a GAM on the same 13 predictors as the linear regression model. After performing feature selection, we also constructed a simplified GAM using only 7 of the most important features. We then performed 5-fold stratified cross validation to compare the performances of the linear regression, full GAM, and simplified GAM using RMSE.
 
 ```{r}
 #CV Plot
