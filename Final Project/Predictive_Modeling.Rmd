@@ -798,6 +798,8 @@ ui = navbarPage(title = div(img(
   
   src = "https://www.logolynx.com/images/logolynx/e7/e7ec1b0c8c294ff754d8e20c5636e6ae.png", height = 60, width = 210), ""),
   
+  windowTitle = "Optum Bridges",
+  
   theme = bs_theme(bootswatch = "lux"),
   
   inverse = T,
@@ -845,7 +847,7 @@ ui = navbarPage(title = div(img(
                       uiOutput("text1"),
               tags$head(tags$style("#text1{color: black;
                                  font-size: 22px;
-                                 line-height: 22.0;
+                                 line-height: 17.0;
                                  text-indent: 37px;
                                  }"
                          )))
@@ -878,7 +880,7 @@ ui = navbarPage(title = div(img(
              
     fluidPage(
         
-        titlePanel(title = h2("Premature Deaths Map", align = "center")),
+        titlePanel(title = h2("Health Behaviors Map", align = "center")),
         
         sidebarLayout(
         sidebarPanel( 
@@ -931,7 +933,7 @@ server = function(input,output){
     
   output$plot1 <- renderPlot({
     ypll_plot_1()
-  }, height = 600, width = 1000)
+  }, height = 550, width = 900)
   
   response_plot <- eventReactive(input$go_response, {
     demo_map(Race_Type = input$demo, region = input$region)
@@ -939,7 +941,7 @@ server = function(input,output){
   
   output$plot2 <- renderPlot({
     response_plot()
-  }, height = 650, width = 1100)
+  }, height = 500, width = 800)
   
   pred_plot <- eventReactive(input$go_pred, {
     pred_map(pred = input$pred, region = input$region_pred)
@@ -947,7 +949,7 @@ server = function(input,output){
   
   output$plot3 <- renderPlot({
     pred_plot()
-  }, height = 650, width = 1100)
+  }, height = 500, width = 800)
 }
 ```
 
