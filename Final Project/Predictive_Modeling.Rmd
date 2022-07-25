@@ -266,7 +266,8 @@ ypll_hist = function(pred_value){
     scale_x_continuous(label = scales::comma) + #the nudge lvl are weird bc im tuning it for shiny
     scale_y_continuous(breaks = seq(0,200,50)) +
     theme_bw() +
-    labs(x = "YPPL", y = "Count", title = "Predicted YPLL Percentile Ranking")
+    labs(x = "YPLL", y = "Count", title = "Predicted YPLL Percentile Ranking") +
+    theme(plot.title = element_text(size = 20))
 }
 
 ypll_hist(12310.13)
@@ -639,6 +640,40 @@ lm_mod = lm(YPLL ~ std + smoke + food_per + drink_per + county_class, data = cou
 library(caret)
 library(mgcv)
 ```
+#XGBoost
+```{r}
+library(xgboost)
+library(vip)
+xgboost_tune_grid <- expand.grid(nrounds = seq(from = 20, to = 200, by = 20),
+                                 eta = c(0.025, 0.05, 0.1, 0.3), gamma = 0,
+                                 max_depth = c(1, 2, 3, 4), colsample_bytree = 1,
+                                 min_child_weight = 1, subsample = 1)
+
+xgboost_tune_control <- trainControl(method = "cv", number = 5, verboseIter = FALSE)
+
+set.seed(1937)
+
+xg_df = strat_cv(df_input = county_pred_df)
+
+xgb_tune <- train(x = as.matrix(dplyr::select(xg_df, -c(YPLL, Population, test_fold, county_class))),
+                  y = xg_df$YPLL, trControl = xgboost_tune_control,
+                  tuneGrid = xgboost_tune_grid, 
+                  objective = "reg:squarederror", method = "xgbTree",
+                  verbose = F)
+
+xgb_tune$bestTune
+
+xgb_tune$finalModel
+
+xgb_fit_final <- xgboost(data = as.matrix(dplyr::select(xg_df, -c(YPLL, Population, test_fold, county_class))),
+                         label = xg_df$YPLL, objective = "reg:squarederror",
+                         nrounds = xgb_tune$bestTune$nrounds,
+                         params = as.list(dplyr::select(xgb_tune$bestTune, -nrounds)), 
+                         verbose = 0)
+
+vip(xgb_fit_final) + theme_bw()
+```
+
 
 ## Model Validation
 
@@ -751,13 +786,14 @@ fin_mod = data.frame(y_actual, y_fitted) %>%
 
 ```{r}
 #Finalized shiny model
+#Note: The F statistic explains predictors impact on output response
 final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
                          as.factor(county_class), #alternative: s(Population)
                       data = final_df, 
                       method = "REML")
 
-#summary(final_gam_model)
-#draw(final_gam_model)
+summary(final_gam_model)
+plot(final_gam_model)
 ```
 
 ```{r}
@@ -777,8 +813,6 @@ filter(final_df, County == "Allegheny")
 ```
 
 # To Do: (1) VIP/Inference/Assumptions for GAM, (2) Publish Shiny 
-# Tooltip not working, may be some interaction issues with the theme
-# Make plot 1 title a h4 header element, reduce width of plots bc browser view is zoomed in, apply browser title (prob in navbarpage)
 # Shiny App
 
 ```{r}
@@ -787,6 +821,8 @@ library(shinyBS)
 library(bslib) #theme
 library(hablar) #retype()
 library(formattable)#comma()
+
+#CSS: https://unleash-shiny.rinterface.com/beautify-css.html
 
 county_options = c("Urban", "Suburban", "Rural") %>% sort()
 demo_options = c("All", "Asian", "Black", "Hispanic", "Native American", "White") %>% sort()
@@ -803,22 +839,26 @@ ui = navbarPage(title = div(img(
   
   windowTitle = "Optum Bridges",
   
-  theme = bs_theme(bootswatch = "lux"),
+  #theme = bs_theme(bootswatch = "lux"), #theme turns off bstooltips
   
   inverse = T,
   
           tags$head(
            tags$style(HTML('.navbar-nav > li > a, .navbar-brand {
-                            padding-top:4px !important; 
-                            padding-bottom:0 !important;
-                            height: 65px;
+                            padding-top:20px !important; 
+                            padding-bottom:0px !important;
+                            height: 105px;
                             }')) #Alter height of navbarpage using CSS
          ),
                 
-      tabPanel(title = "Predictive Modeling",
-                tags$style(HTML(".tabbable tabs-above > .nav > li > a {
-                                background-color: aqua;  
-                                color:black}")),
+      tabPanel(#classifying css class with text attributes that can be called
+        tags$style(".first-p {color: white;
+                   padding-top:20px !important;
+                   font-size: 18px;
+                   font-weight: 500;}"
+                   ), 
+        
+        title = p(class = "first-p", "Predictive Modeling"),
     
            fluidPage(
             
@@ -846,7 +886,8 @@ ui = navbarPage(title = div(img(
                 bsTooltip(id = "std", title = "Number of Chlamydia Cases per 100k")
              ),
              
-            mainPanel(plotOutput("plot1"),
+            mainPanel(br(), #manually add line break to create space for plot
+                      plotOutput("plot1"),
                       uiOutput("text1"),
               tags$head(tags$style("#text1{color: black;
                                  font-size: 22px;
@@ -857,7 +898,7 @@ ui = navbarPage(title = div(img(
 
              ))),
   
-    navbarMenu("Interactive Map",
+    navbarMenu(title = p(class = "first-p", "Interactive Map"),
                
     tabPanel(title = "Premature Deaths",
              
