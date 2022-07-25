@@ -676,11 +676,13 @@ holdout_predictions <-
                    test_actual = test_data$YPLL, test_fold = holdout)
           })
 
+#error notes: RMSE and MAE put the error on response scale, such that our model on average is MAE/RMSE units away from the actual response
 gam_cv = holdout_predictions %>%
   pivot_longer(lm_preds:simple_gam_preds, 
                names_to = "type", values_to = "test_preds") %>%
   group_by(type, test_fold) %>%
-  summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>%
+  summarize(rmse = sqrt(mean((test_actual - test_preds)^2)),
+            mae = mean(abs(test_actual - test_preds))) %>%
   mutate(type = recode(type, 'gam_preds' = 'Full GAM' , 'simple_gam_preds' =  'Simple GAM', 'lm_preds' = 'Linear')) %>%
   ggplot(aes(x = type, y = rmse)) + 
   geom_point() + 
@@ -755,6 +757,7 @@ final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + 
                       method = "REML")
 
 #summary(final_gam_model)
+#draw(final_gam_model)
 ```
 
 ```{r}
