@@ -257,6 +257,8 @@ xgb_tune <- train(x = as.matrix(dplyr::select(model_mlb_data, -war)),
                   verbose = F)
 
 xgb_tune$bestTune
+
+xgb_tune$finalModel
 ```
 
 ## XGBoost example
@@ -265,8 +267,7 @@ xgb_tune$bestTune
 xgb_fit_final <- xgboost(data = as.matrix(dplyr::select(model_mlb_data, -war)),
                          label = model_mlb_data$war, objective = "reg:squarederror",
                          nrounds = xgb_tune$bestTune$nrounds,
-                         params = as.list(dplyr::select(xgb_tune$bestTune,
-                                                        -nrounds)), 
+                         params = as.list(dplyr::select(xgb_tune$bestTune, -nrounds)), 
                          verbose = 0)
 
 vip(xgb_fit_final) + theme_bw()
