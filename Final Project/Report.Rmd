@@ -343,7 +343,7 @@ Health behaviors are actions individuals take that affect their health. They inc
 
 **Response**
 
-- Premature Death: Years of potential life (YPLL) lost before age 75 per 1000,000 population (2018-2020) 
+- Premature Death: Years of potential life (YPLL) lost before age 75 per 100,000 population (2018-2020) 
 
 **Predictors**
   
@@ -413,11 +413,33 @@ plot_grid(food_obesity, food_drink, smoke_dui,
 
 ## Methods
 
-Given the relatively linear relationships discovered in our EDA, we explored linear regression, general additive models (GAM), and regularization techniques.
+Given the relatively linear relationships discovered in our EDA, we explored linear regression, general additive models (GAM), and regularization techniques. Additionally, to explore potential interactions between predictors we built a flexible tree based model using gradient boosted machines (GBM).
+
+### Linear Regression
+
+We designed a linear regression model using all of our predictors to serve as a baseline model for future model selection. Given the general linear relationships among YPLL and our predictors, we expect model to perform relatively well compared to more robust modeling techniques.
 
 ### Regularization Techniques
 
-We first explored the performance of linear regression model using all 13 features compared to a lasso, ridge, and elastic net techniques. Using 5-fold stratified cross validation, we evaluated model performance on predicting YPLL using root mean squared error (RMSE) as our cost function. Using stratified cross validation ensures that relative county frequencies within group (i.e., state) is approximately preserved in each train and validation fold.
+We explored Lasso, Ridge, and Elastic Net modeling to discourage learning more complex models and reduce the risk of overfitting. Given the collinearity between our exercise/diet related predictors, we designed Ridge and elastic net models to avoid potentially randomly removing highly collinear variables.
+
+
+### General Additive Model
+
+GAM are flexible models that are sure to outperform the linear regression because it could capture both linear and nonlinear relationships with its basis functions. 
+
+Using backwards stepwise variable selection, I began with a saturated GAM using all predictors. I then removed the least significant predictor (based on p-value) and calculated the root mean squared error (RMSE) of this model. I continued this process until I exhausted all the predictors and I selected the model with the least RMSE.
+
+This stepwise technique led us to create a simplified GAM with 7 features: Physical Inactivity, Obesity, Food Insecurity, Excessive Drinking, Smoking, STI, and County Class Descriptions.
+
+### Gradient Boosted Machines
+
+Add GBM to cv
+
+
+## Results
+
+We first explored the performance of our linear regression model using all 13 features compared to a lasso, ridge, and elastic net techniques. Using 5-fold stratified cross validation, we evaluated model performance on predicting YPLL using RMSE as our cost function. Using stratified cross validation ensures that relative county frequencies within group (i.e., state) is approximately preserved in each train and validation fold.
 
 ```{r}
 #CV Plot
@@ -426,20 +448,14 @@ reg_cv
 
 Despite the purpose of using regularization approaches being to reduce overfitting/variance, our linear regression model outperformed all three regularization techniques on the holdout data within intervals. This led us to explore a non-parametric approach that could still preserve linear relationships in the data using GAM.
 
-### General Additive Model
-
-GAM are flexible models that are sure to outperform the linear regression because it could capture both linear and nonlinear relationships with its basis functions. We initially built a GAM on the same 13 predictors as the linear regression model. After performing feature selection, we also constructed a simplified GAM using only 7 of the most important features. We then performed 5-fold stratified cross validation to compare the performances of the linear regression, full GAM, and simplified GAM using RMSE.
+We initially built a GAM on the same 13 predictors as the linear regression model. After performing feature selection, we also constructed a simplified GAM using only 7 of the most important features. We then performed 5-fold stratified cross validation to compare the performances of the linear regression, full GAM, simplified GAM and GBM using RMSE.
 
 ```{r}
 #CV Plot
 gam_cv
 ```
 
-Both GAM models outperform the linear regression model within intervals. The simple GAM (7 features) performs outperforms the full GAM (11 features) within intervals. The simplified GAM's better performance is likely due to reduce model variability compared to the full GAM.
-
-## Results
-
-The 7 features in our simplified GAM model are: Physical Inactivity, Obesity, Food Insecurity, Excessive Drinking, Smoking, STI, and County Class Descriptions.
+Both GAM models outperform the linear regression model within intervals. The simple GAM (7 features) outperforms the full GAM (11 features) within intervals. The simplified GAM's better performance is likely due to reduce model variability compared to the full GAM.
 
 When plotting our fitted values on a holdout set of actual values for YPLL we found that are simple GAM model predicts well for a majority of the data when YPLL < 15,000. However, once YPLL > 15,000 our model tends to underestimate these observations. As stated earlier when evaluating YPLL versus county types, YPLL observations tend to artificially inflate for low population counties. This phenomena can explain why our model underestimates large YPLL values.
 
@@ -470,3 +486,4 @@ fin_mod
 
 - In cohort studies, health data is collected from individuals among a specific area or demographic. Using a cohort study, the predictive model could show health behavior effects on premature mortality at the individual level and we could account for more specific health measures, such as blood pressure and waist circumference. 
 
+## References
