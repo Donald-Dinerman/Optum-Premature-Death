@@ -1,16 +1,10 @@
----
-title: "Clean App"
-author: "Donald Dinerman"
-date: '2022-07-26'
-output: html_document
----
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
 ```
 
-# Data Processing
 ```{r}
+#Note: Have to use app.r or multiple files (ui.R, server.R)
 #load libraries
 library(tidyverse)
 library(readxl)
@@ -135,9 +129,10 @@ final_df = reliable_data %>%
   na.omit()
 ```
 
-# YPLL Percentile
 
 ```{r}
+# YPLL Percentile
+
 ypll_hist = function(pred_value){
 
   value = pred_value #predicted value
@@ -158,9 +153,10 @@ ypll_hist = function(pred_value){
 }
 ```
 
-# Interactive Maps
 
 ```{r}
+# Interactive Maps
+
 #function to get states from region for reactive plot
 expand_region = function(x){
   
@@ -267,18 +263,20 @@ pred_map = function(df = state_pred_df, pred, limit_set = c(), region = '') {
 }
 ```
 
-# Modeling
 
 ```{r}
+# Modeling
+
 final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + s(drink_per) + s(smoke) + s(std) +
                          as.factor(county_class), #alternative: s(Population)
                       data = final_df, 
                       method = "REML")
 ```
 
-#Shiny App
 
 ```{r}
+#Shiny App
+
 #Labels
 county_options = c("Urban", "Suburban", "Rural") %>% sort()
 demo_options = c("All", "Asian", "Black", "Hispanic", "Native American", "White") %>% sort()
@@ -288,7 +286,6 @@ pred_options = c("Excessive Drinking", "Inactivity", "Food Insecurity", "Obesity
 ```
 
 ```{r}
-#Modify tabpanel title height x width (CSS needed)
 ui = navbarPage(title = div(img(
   
   src = "https://www.logolynx.com/images/logolynx/e7/e7ec1b0c8c294ff754d8e20c5636e6ae.png", height = 60, width = 210), ""),
