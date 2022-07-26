@@ -211,7 +211,6 @@ expand_region = function(x){
 ```
 
 ```{r}
-#Modify: cleaned race_type inputs based on shiny list, extra: regional input flexibility
 demo_map = function(df = demo_response_clean_df, Race_Type, limit_set = c(), region = '') {
   
   #Filter readable input to variable name in df
@@ -350,7 +349,7 @@ setdiff(county_df, df) %>% #find rows not in subsetted df comparing to parent df
 #create state lvl df
 state_pred_df = reliable_data %>%
   group_by(State) %>%
-  slice(1) %>%
+  dplyr::slice(1) %>%
   rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
   summarise(
             #Alcohol/Drug
