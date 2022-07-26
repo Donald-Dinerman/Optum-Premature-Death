@@ -645,35 +645,36 @@ library(mgcv)
 library(xgboost)
 library(vip)
 xgboost_tune_grid <- expand.grid(nrounds = seq(from = 20, to = 200, by = 20),
-                                 eta = c(0.025, 0.05, 0.1, 0.3), gamma = 0,
-                                 max_depth = c(1, 2, 3, 4), colsample_bytree = 1,
-                                 min_child_weight = 1, subsample = 1)
+                                 eta = c(0.025, 0.05, 0.1, 0.3), gamma = 0, #seq(0, 4, 2)
+                                 max_depth = 3, colsample_bytree = 0.9, #c(1, 2, 3, 4), seq(0.8, 1, 0.1)
+                                 min_child_weight = 1, subsample = 0.9) #seq(0.8, 1, 0.1)
 
 xgboost_tune_control <- trainControl(method = "cv", number = 5, verboseIter = FALSE)
 
 set.seed(1937)
 
-xg_df = strat_cv(df_input = county_pred_df)
+xg_df = strat_cv(df_input = county_pred_df) %>%
+    mutate(urban = ifelse(county_class == 'Urban', 1, 0), #transform county_class to dummy
+            suburban = ifelse(county_class == 'Suburban', 1, 0),
+            rural = ifelse(county_class == 'Rural', 1, 0)) %>%
+  select(-c(county_class, Population, test_fold))
 
-xgb_tune <- train(x = as.matrix(dplyr::select(xg_df, -c(YPLL, Population, test_fold, county_class))),
+xgb_tune <- train(x = as.matrix(dplyr::select(xg_df, -YPLL)),
                   y = xg_df$YPLL, trControl = xgboost_tune_control,
                   tuneGrid = xgboost_tune_grid, 
                   objective = "reg:squarederror", method = "xgbTree",
                   verbose = F)
 
-xgb_tune$bestTune
-
-xgb_tune$finalModel
-
-xgb_fit_final <- xgboost(data = as.matrix(dplyr::select(xg_df, -c(YPLL, Population, test_fold, county_class))),
+xgb_fit_final <- xgboost(data = as.matrix(dplyr::select(xg_df, -YPLL)),
                          label = xg_df$YPLL, objective = "reg:squarederror",
                          nrounds = xgb_tune$bestTune$nrounds,
                          params = as.list(dplyr::select(xgb_tune$bestTune, -nrounds)), 
                          verbose = 0)
 
 vip(xgb_fit_final) + theme_bw()
-```
 
+xgb_tune$finalModel
+```
 
 ## Model Validation
 
@@ -690,12 +691,30 @@ holdout_predictions <-
             # Separate test and training data:
             test_data <- strat_cv_df %>% filter(test_fold == holdout)
             train_data <- strat_cv_df %>% filter(test_fold != holdout)
+            
+            xg_train <- train_data %>% 
+              mutate(urban = ifelse(county_class == 'Urban', 1, 0), #transform county_class to dummy
+                      suburban = ifelse(county_class == 'Suburban', 1, 0),
+                      rural = ifelse(county_class == 'Rural', 1, 0)) %>%
+              select(-c(county_class, Population, test_fold))
+            
+            xg_test <- test_data %>% 
+              mutate(urban = ifelse(county_class == 'Urban', 1, 0), #transform county_class to dummy
+                      suburban = ifelse(county_class == 'Suburban', 1, 0),
+                      rural = ifelse(county_class == 'Rural', 1, 0)) %>%
+              select(-c(county_class, Population, test_fold))
           
             # Train models:
             lm_model <- lm(YPLL ~ ., data = train_data)
             
-            gam_model <- gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_per) + s(exercise_access_per) + s(food_per) +
-                            s(healthy_access_per) + s(obesity_rate) + s(smoke) + s(std) + as.factor(county_class), 
+            xgb_model <- xgboost(data = as.matrix(dplyr::select(xg_train, -YPLL)),
+                         label = train_data$YPLL, objective = "reg:squarederror",
+                         nrounds = xgb_tune$bestTune$nrounds,
+                         params = as.list(dplyr::select(xgb_tune$bestTune, -nrounds)), 
+                         verbose = 0)
+            
+            gam_model <- gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_per) + s(exercise_access_per) + 
+                             s(food_per) + s(healthy_access_per) + s(obesity_rate) + s(smoke) + s(std) + as.factor(county_class), 
                             data = train_data, 
                             method = "REML")
 
@@ -706,6 +725,7 @@ holdout_predictions <-
 
             # Return tibble of holdout results:
             tibble(lm_preds = predict(lm_model, newdata = test_data), #linear model
+                   xgb_preds = predict(xgb_model, newdata = as.matrix(dplyr::select(xg_test, -YPLL))),
                    gam_preds = predict(gam_model, newdata = test_data), #gam model
                    simple_gam_preds = predict(simple_gam_model, newdata = test_data),
                    test_actual = test_data$YPLL, test_fold = holdout)
@@ -718,10 +738,11 @@ gam_cv = holdout_predictions %>%
   group_by(type, test_fold) %>%
   summarize(rmse = sqrt(mean((test_actual - test_preds)^2)),
             mae = mean(abs(test_actual - test_preds))) %>%
-  mutate(type = recode(type, 'gam_preds' = 'Full GAM' , 'simple_gam_preds' =  'Simple GAM', 'lm_preds' = 'Linear')) %>%
+  mutate(type = recode(type, 'gam_preds' = 'Full GAM' , 'simple_gam_preds' =  'Simple GAM', 'xgb_preds' = 'XGBoost',
+                       'lm_preds' = 'Linear')) %>%
   ggplot(aes(x = type, y = rmse)) + 
   geom_point() + 
-  scale_x_discrete(limits = c("Simple GAM", "Full GAM", "Linear")) + 
+  scale_x_discrete(limits = c("Simple GAM", "XGBoost", "Full GAM", "Linear")) + 
   theme_bw() +
   stat_summary(fun = mean, geom = "point", 
                color = "red") + 
@@ -792,8 +813,8 @@ final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + 
                       data = final_df, 
                       method = "REML")
 
-summary(final_gam_model)
-plot(final_gam_model)
+#summary(final_gam_model)
+#plot(final_gam_model)
 ```
 
 ```{r}
@@ -845,16 +866,16 @@ ui = navbarPage(title = div(img(
   
           tags$head(
            tags$style(HTML('.navbar-nav > li > a, .navbar-brand {
-                            padding-top:20px !important; 
+                            padding-top:18px !important; 
                             padding-bottom:0px !important;
-                            height: 105px;
+                            height: 90px;
                             }')) #Alter height of navbarpage using CSS
          ),
                 
       tabPanel(#classifying css class with text attributes that can be called
         tags$style(".first-p {color: white;
-                   padding-top:20px !important;
-                   font-size: 18px;
+                   padding-top:18px !important;
+                   font-size: 16px;
                    font-weight: 500;}"
                    ), 
         
