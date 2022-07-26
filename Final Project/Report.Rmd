@@ -6,7 +6,6 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-## Question: use geom_smooth? if so lm method or gam?, what to add for results section? GAM inference?
 #Going to run all code above HTML, save output as objects and then call objects in html code chunks
 knitr::opts_chunk$set(echo = F, warning = F, message = F)
 ```
@@ -22,6 +21,7 @@ library(broom)
 library(caret)
 library(mgcv)
 library(cowplot)
+library(xgboost)
 ```
 
 ```{r}
@@ -89,6 +89,12 @@ county_pred_df = reliable_data %>%
             Population) %>%
   na.omit()
 
+ypll_histogram = ggplot(county_pred_df, aes(x = YPLL)) +
+  geom_histogram(col = "black", fill = "steelblue", binwidth = 1000) +
+  scale_x_continuous(label = scales::comma, breaks = seq(0,30000,5000)) +
+  theme_bw() +
+  labs(y = "Count", x = "YPLL")
+  
 ypll_smoke = ggplot(county_pred_df, aes(y = YPLL, x = smoke)) +
   geom_point(alpha = 0.25) +
   scale_y_continuous(label = scales::comma) +
@@ -149,7 +155,7 @@ smoke_dui = ggplot(county_pred_df, aes(y = smoke, x = dui_per)) +
 ```{r}
 #Regularization Modeling
 #stratified cv
-strat_cv = function(df_input, k = 5, seed = 123){
+strat_cv = function(df_input, k = 5, seed = 100){
   
   set.seed(seed)
   state_list = unique(df_input$state)
@@ -204,7 +210,7 @@ reg_cv = holdout_predictions %>%
   mutate(type = recode(type, 'en_preds' = 'Elastic Net' , 'lasso_preds' =  'Lasso','ridge_preds' = 'Ridge', 'lm_preds' = 'Linear')) %>%
   ggplot(aes(x = type, y = rmse)) + 
   geom_point() + 
-  scale_x_discrete(limits = c("Linear", "Lasso","Elastic Net", "Ridge")) + 
+  scale_x_discrete(limits = c("Linear", "Lasso", "Ridge", "Elastic Net")) + 
   scale_y_continuous(label = scales::comma) +
   theme_bw() +
   stat_summary(fun = mean, geom = "point", 
@@ -215,9 +221,18 @@ reg_cv = holdout_predictions %>%
 ```
 
 ```{r}
+#XGBoost Tuning Parameters Picked up from Predictive_Modeling.Rmd
+#Copied here just to reduce computational time
+
+xgb_tuning = data.frame(nrounds = 200, max_depth = 3, eta = 0.05, gamma = 0, colsample_bytree = 0.9, min_child_weight = 1, 
+                        subsample = 0.9)
+```
+
+
+```{r}
 #GAM Modeling
 #stratified k fold
-strat_cv_df = strat_cv(df_input = county_pred_df)
+strat_cv_df = strat_cv(df_input = county_pred_df, k = 5, seed = 100)
 
 #Calculate holdout predictions
 holdout_predictions <- 
@@ -227,10 +242,28 @@ holdout_predictions <-
             # Separate test and training data:
             test_data <- strat_cv_df %>% filter(test_fold == holdout)
             train_data <- strat_cv_df %>% filter(test_fold != holdout)
-          
+
+            xg_train <- train_data %>% 
+              mutate(urban = ifelse(county_class == 'Urban', 1, 0), #transform county_class to dummy
+                      suburban = ifelse(county_class == 'Suburban', 1, 0),
+                      rural = ifelse(county_class == 'Rural', 1, 0)) %>%
+              select(-c(county_class, Population, test_fold))
+            
+            xg_test <- test_data %>% 
+              mutate(urban = ifelse(county_class == 'Urban', 1, 0), #transform county_class to dummy
+                      suburban = ifelse(county_class == 'Suburban', 1, 0),
+                      rural = ifelse(county_class == 'Rural', 1, 0)) %>%
+              select(-c(county_class, Population, test_fold))
+            
             # Train models:
             lm_model <- lm(YPLL ~ ., data = train_data)
             
+            xgb_model <- xgboost(data = as.matrix(dplyr::select(xg_train, -YPLL)),
+                                label = xg_train$YPLL, objective = "reg:squarederror",
+                                nrounds = xgb_tuning$nrounds,
+                                params = as.list(dplyr::select(xgb_tuning, -nrounds)), 
+                                verbose = 0)
+                        
             gam_model <- gam(YPLL ~ s(drink_per) + s(dui_per) + s(food_index) + s(inactive_per) + s(exercise_access_per) + s(food_per) +
                             s(healthy_access_per) + s(obesity_rate) + s(smoke) + s(std) + as.factor(county_class), 
                             data = train_data, 
@@ -243,6 +276,7 @@ holdout_predictions <-
 
             # Return tibble of holdout results:
             tibble(lm_preds = predict(lm_model, newdata = test_data), #linear model
+                   xgb_preds = predict(xgb_model, newdata = as.matrix(dplyr::select(xg_test, -YPLL))),
                    gam_preds = predict(gam_model, newdata = test_data), #gam model
                    simple_gam_preds = predict(simple_gam_model, newdata = test_data),
                    test_actual = test_data$YPLL, test_fold = holdout)
@@ -253,10 +287,11 @@ gam_cv = holdout_predictions %>%
                names_to = "type", values_to = "test_preds") %>%
   group_by(type, test_fold) %>%
   summarize(rmse = sqrt(mean((test_actual - test_preds)^2))) %>%
-  mutate(type = recode(type, 'gam_preds' = 'Full GAM' , 'simple_gam_preds' =  'Simple GAM', 'lm_preds' = 'Linear')) %>%
+  mutate(type = recode(type, 'gam_preds' = 'Full GAM' , 'simple_gam_preds' =  'Simple GAM', 'xgb_preds' = 'XGBoost', 
+                       'lm_preds' = 'Linear')) %>%
   ggplot(aes(x = type, y = rmse)) + 
   geom_point() + 
-  scale_x_discrete(limits = c("Simple GAM", "Full GAM", "Linear")) + 
+  scale_x_discrete(limits = c("Simple GAM", "XGBoost","Full GAM", "Linear")) + 
   scale_y_continuous(label = scales::comma) +
   theme_bw() +
   stat_summary(fun = mean, geom = "point", 
@@ -335,7 +370,7 @@ Health behaviors are a leading cause of illness and death in the United states. 
 
 ## Data
 
-Our data set was gathered from the County Health Rankings Model. This model contains community health information that emphasizes the many factors that influence how long and how well we live. Specifically, we focused on county-level premature deaths and health behavior factors for our analysis.
+Our data set was gathered from the [County Health Rankings Model](https://www.countyhealthrankings.org/explore-health-rankings/measures-data-sources/county-health-rankings-model?componentType=factor-area&componentId=3). This model contains community health information across 2,853 US counties that emphasizes the many factors that influence how long and how well we live. Specifically, we focused on county-level premature deaths and health behavior factors for our analysis.
 
 Health behaviors are actions individuals take that affect their health. They include actions that lead to improved health, such as eating well and being physically active, and actions that increase one’s risk of disease, such as smoking, excessive alcohol intake, and risky sexual behavior. Below we provide descriptions of each variable within every health behavior category.
 
@@ -381,11 +416,11 @@ Health behaviors are actions individuals take that affect their health. They inc
 
 ### Exploratory Data Analysis
 
-We first started by exploring the geographical distribution of our response variable, YPLL, using choropleths. We developed a comprehensive function that outputs these YPLL maps reactively based on demographics and geographic region but for the purposes of the report we've only included the YPLL distribution across the entire United States.
+We first started by exploring the marginal distribution of our response variable, YPLL. Given that we are working with county-level data, each YPLL observation represents a single county and each binwidth represents 1,000 years. From the histogram, we noted that YPLL is positively skewed and centered at approximately 8,000 years. Given this skewed distribution, we understood that we may need to account for the potential variable(s) driving this non-normal distribution in our model to reduce bias.
 
 ```{r}
-#YPLL Map
-ypll_map
+#YPLL Histogram
+ypll_histogram
 ```
 
 Next we modeled our predictors' relationships with the response variable. To do this comprehensively yet efficiently, we created pairs plots and a correlation matrix. For the purposes of this report, we've included only some scatter plots between our response and predictors that we believe captures the most significant relationships. Of our explanatory variables that demonstrated a significant relationship with YPLL, their relationship was largely linear with some curvature at the ends.
@@ -396,7 +431,7 @@ plot_grid(ypll_drink, ypll_smoke,ypll_food, ypll_obesity,
           ncol = 2, labels = c('A', 'B', 'C', 'D'), label_fontface = 'bold',label_size = 11)
 ```
 
-Given that county class is our only categorical predictor, we created a violin plot overlayed on top of a boxplot to model the relationship between county types and YPLL. Interestingly, we found that the mean YPLL and YPLL variability increases as population decreases. The mean increasing could be potentially due to poorer access to high quality healthcare in more rural areas versus the city or other factors. However, the high degree of variation in the YPLL could be explained by how the statistic is derived. YPLL measures years of potential lives lost per 100k people. Therefore in counties where their total population is 10k, their YPLL statistic will be multiplied by a factor of 10. Therefore, in smaller populations we are more likely to see high YPLL variability 'technically' at both ends (but from this plot we really only see that it is heavily skewed right).
+Given that county class is our only categorical predictor, we created a violin plot overlayed on top of a boxplot to model the relationship between county types and YPLL. Interestingly, we found that the mean YPLL and YPLL variability increases as population decreases. The mean increasing could be potentially due to poorer access to high quality healthcare in more rural areas versus the city or other factors. However, the high degree of variation in the YPLL could be explained by how the statistic is derived. YPLL measures years of potential lives lost per 100k people. Therefore in counties where their total population is 10k, their YPLL statistic will be multiplied by a factor of 10. Therefore, in smaller populations the sample sizes are too small resulting in an unstable average YPLL.
 
 ```{r}
 #YPLL vs Predictors colored by county class
@@ -413,33 +448,37 @@ plot_grid(food_obesity, food_drink, smoke_dui,
 
 ## Methods
 
-Given the relatively linear relationships discovered in our EDA, we explored linear regression, general additive models (GAM), and regularization techniques. Additionally, to explore potential interactions between predictors we built a flexible tree based model using gradient boosted machines (GBM).
+Given the relatively linear relationships discovered in our EDA, we explored linear regression, general additive models (GAM), and regularization techniques. Additionally, to explore potential interactions between predictors we built a flexible tree based model using an Extreme Gradient Boosting (XGBoost) model.
 
 ### Linear Regression
 
-We designed a linear regression model using all of our predictors to serve as a baseline model for future model selection. Given the general linear relationships among YPLL and our predictors, we expect model to perform relatively well compared to more robust modeling techniques.
+We designed a linear regression model using all of our 11 predictors to serve as a baseline model for future model selection. Given the general linear relationships among YPLL and our predictors, we expect model to perform relatively well compared to more robust modeling techniques.
 
 ### Regularization Techniques
 
 We explored Lasso, Ridge, and Elastic Net modeling to discourage learning more complex models and reduce the risk of overfitting. Given the collinearity between our exercise/diet related predictors, we designed Ridge and elastic net models to avoid potentially randomly removing highly collinear variables.
 
+The gamma parameter determines the mix between a relaxed and regularized fit in modeling. To tune the gamma parameter, we performed 10-fold cross validation to minimize CV error. 
 
 ### General Additive Model
 
 GAM are flexible models that are sure to outperform the linear regression because it could capture both linear and nonlinear relationships with its basis functions. 
 
-Using backwards stepwise variable selection, I began with a saturated GAM using all predictors. I then removed the least significant predictor (based on p-value) and calculated the root mean squared error (RMSE) of this model. I continued this process until I exhausted all the predictors and I selected the model with the least RMSE.
+Using backwards stepwise variable selection, I began with a full GAM using all predictors. I then removed the least significant predictor, based on the F Statistic. In GAM output, the F statistic measures a feature's impact on the output. Lastly, I calculated the model's root mean squared error (RMSE) using cross validation. I continued this process until I exhausted all the predictors and I selected the model with the least RMSE.
 
 This stepwise technique led us to create a simplified GAM with 7 features: Physical Inactivity, Obesity, Food Insecurity, Excessive Drinking, Smoking, STI, and County Class Descriptions.
 
-### Gradient Boosted Machines
+Note that GAM treats categorical variables (e.g., County Class) essentially as intercepts where one class is a baseline. So essentially the GAM fit is offset by some factor depending on which categorical class is predicted.
 
-Add GBM to cv
+### XGBoost
 
+An XGBoost model is an implementation of gradient boosted machines with additional features for regularization and parallelization for faster computing times. This tree based model can potentially capture interactions among our predictors that we may have overlooked in our linear regression and GAM models.
+
+To tune the model we performed grid search cross validation on the following parameters: number of trees, tree depth, max features per tree, sampling proportion, gamma (regularization), and learning rate. We used squared error as our cost function.
 
 ## Results
 
-We first explored the performance of our linear regression model using all 13 features compared to a lasso, ridge, and elastic net techniques. Using 5-fold stratified cross validation, we evaluated model performance on predicting YPLL using RMSE as our cost function. Using stratified cross validation ensures that relative county frequencies within group (i.e., state) is approximately preserved in each train and validation fold.
+We first explored the performance of our linear regression model using all 11 features compared to a lasso, ridge, and elastic net techniques. Using 5-fold stratified cross validation, we evaluated model performance on predicting YPLL using RMSE as our cost function. Using stratified cross validation ensures that relative county frequencies within group (i.e., state) is approximately preserved in each train and validation fold.
 
 ```{r}
 #CV Plot
@@ -448,19 +487,22 @@ reg_cv
 
 Despite the purpose of using regularization approaches being to reduce overfitting/variance, our linear regression model outperformed all three regularization techniques on the holdout data within intervals. This led us to explore a non-parametric approach that could still preserve linear relationships in the data using GAM.
 
-We initially built a GAM on the same 13 predictors as the linear regression model. After performing feature selection, we also constructed a simplified GAM using only 7 of the most important features. We then performed 5-fold stratified cross validation to compare the performances of the linear regression, full GAM, simplified GAM and GBM using RMSE.
+We initially built a GAM on the same 11 predictors as the linear regression model. After performing feature selection, we also constructed a simplified GAM using only 7 of the most important features. We then tuned an XGBoost model and performed 5-fold stratified cross validation to compare the performances of the linear regression, full GAM, simplified GAM and XGBoost using RMSE.
 
 ```{r}
 #CV Plot
 gam_cv
 ```
 
-Both GAM models outperform the linear regression model within intervals. The simple GAM (7 features) outperforms the full GAM (11 features) within intervals. The simplified GAM's better performance is likely due to reduce model variability compared to the full GAM.
+The simple GAM (7 features) outperforms the full GAM (11 features) and linear regression within intervals. Among the GAM, the simplified model's better performance is likely due to reduce model variability compared to the full model. However, the average performance of the simplified GAM and XGBoost model are nearly identical. Therefore, we can base our selection of the GAM over XGBoost because *HELP*
 
-When plotting our fitted values on a holdout set of actual values for YPLL we found that are simple GAM model predicts well for a majority of the data when YPLL < 15,000. However, once YPLL > 15,000 our model tends to underestimate these observations. As stated earlier when evaluating YPLL versus county types, YPLL observations tend to artificially inflate for low population counties. This phenomena can explain why our model underestimates large YPLL values.
+When plotting our fitted values on a holdout set of actual values for YPLL we found that are simple GAM model predicts well for a majority of the data when 7,500 < YPLL < 15,000. However, once YPLL < 7,500 our model tends to overestimate these observations. And once YPLL > 15,000 our model tends to underestimate these observations This is a common phenomenon in regression where the smallest observations are overestimated and the largest observations are underestimated.
 
 ```{r}
 #Fitted vs Actual
+#Help: Do i do this with test/train data our entire data
+#Help: Why GAM over XGB when error is same
+#Help: How to show/visualize feature importance (something with F stats?)
 fin_mod
 ```
 
@@ -468,13 +510,11 @@ fin_mod
 
 **Conclusions**
 
-- Our simplified GAM outperforms our full GAM and linear regression model in predicting premature deaths.
+- Our simplified GAM outperforms our full GAM, linear regression, and regularized model in predicting premature deaths.
 
-- Our simplified GAM underestimates true YPLL values above 15,000 years.
+- Our simplified GAM overestimates YPLL values below 7,500 years and overestimates values above 15,000 years.
 
 **Limitations**
-
-- The high variation in premature deaths among small populations (i.e., Rural counties) can create inflated and unreliable calculations for YPLL. This can lead to misguided conclusions in both the EDA and modeling process when mapping the relationship between the response and predictor.
 
 - The years our response and predictor variables were collected vary. This complicates drawing direct inference of health behaviors relationship with premature deaths. For prediction purposes, we believe it is valid to use variables from varying years because time is not independent across counties. Therefore, health behaviors-- such as the proportion of tobacco smokers-- shouldn't significantly vary within a couple years within the same county.
 
