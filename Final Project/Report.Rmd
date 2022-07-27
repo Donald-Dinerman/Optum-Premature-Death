@@ -357,46 +357,46 @@ library(mgcViz)
 viz_gam = getViz(plot_gam_model)
 
 p1 = plot(sm(viz_gam, 1)) + l_fitLine(colour = "red") + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_rug(mapping = aes(x=x), alpha = 0.5) +
   l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
   l_points(shape = 19, size = 1, alpha = 0.05) + 
   theme_classic() +
-  labs(x = "Inactivity", y = "s(Inactivity)")
+  labs(x = "Inactivity", y = "Predicted YPLL")
 
 p2 = plot(sm(viz_gam, 2)) + l_fitLine(colour = "red") + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_rug(mapping = aes(x=x), alpha = 0.5) +
   l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
   l_points(shape = 19, size = 1, alpha = 0.05) + 
   theme_classic() +
-  labs(x = "Obesity", y = "s(Obesity)")
+  labs(x = "Obesity", y = "Predicted YPLL")
 
 p3 = plot(sm(viz_gam, 3)) + l_fitLine(colour = "red") + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_rug(mapping = aes(x=x), alpha = 0.5) +
   l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
   l_points(shape = 19, size = 1, alpha = 0.05) + 
   theme_classic() +
-  labs(x = "Healthy Food Access", y = "s(Healthy Food Access)")
+  labs(x = "Lack Healthy Food Access", y = "Predicted YPLL")
 
 p4 = plot(sm(viz_gam, 4)) + l_fitLine(colour = "red") + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_rug(mapping = aes(x=x), alpha = 0.5) +
   l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
   l_points(shape = 19, size = 1, alpha = 0.05) + 
   theme_classic() +
-  labs(x = "Drinking", y = "s(Drinking)")
+  labs(x = "Drinking", y = "Predicted YPLL")
 
 p5 = plot(sm(viz_gam, 5)) + l_fitLine(colour = "red") + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_rug(mapping = aes(x=x), alpha = 0.5) +
   l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
   l_points(shape = 19, size = 1, alpha = 0.05) + 
   theme_classic() +
-  labs(x = "Smoking", y = "s(Smoking)")
+  labs(x = "Smoking", y = "Predicted YPLL")
 
 p6 = plot(sm(viz_gam, 6)) + l_fitLine(colour = "red") + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_rug(mapping = aes(x=x), alpha = 0.5) +
   l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
   l_points(shape = 19, size = 1, alpha = 0.05) + 
   theme_classic() +
-  labs(x = "STI", y = "s(STI)")
+  labs(x = "STI", y = "Predicted YPLL")
 ```
 
 ## Introduction
@@ -507,7 +507,7 @@ The gamma parameter determines the mix between a relaxed and regularized fit in 
 
 ### General Additive Model
 
-GAM are flexible models that are sure to outperform the linear regression because it could capture both linear and nonlinear relationships with its basis functions. 
+GAMs are transparent, interpretable, and flexible models that are sure to outperform the linear regression because it could capture both linear and nonlinear relationships with splines. Furthermore, there are built in regularization penalties on the smooth functions to reduce overfitting. 
 
 Using backwards stepwise variable selection, I began with a full GAM using all predictors. I then removed the least significant predictor, based on the F Statistic. In GAM output, the F statistic measures a feature's impact on the output. Lastly, I calculated the model's root mean squared error (RMSE) using cross validation. I continued this process until I exhausted all the predictors and I selected the model with the least RMSE.
 
@@ -548,6 +548,12 @@ When plotting our fitted values on a holdout set of actual values for YPLL we fo
 fin_mod
 ```
 
+Partial dependence plots (PDP) allow us to isolate a single predictor's impact on the average response predictions. Given that GAM splines are generally not constant and linear, it is useful to visualize predictors' varying relationships with our response. PDP relationships can be causally interpreted for the GAM model because the response is explicitly modeled as a function of our features (this does not mean there are necessarily causal relationships in the real world).
+
+For instance, (describe a couple PDPs)
+
+A limitation of interpreting PDPs is that features are assumed to be independent. Practically, this assumption is often times violated. In our data,  predictors relating to diet and exercise (e.g., Obesity, Inactivity, and Lack of Access to Healthy Foods) are correlated with one another thereby violating the independence assumption. Therefore, when independence is violated we should not interpret PDP relationships as causal for the GAM model.
+
 ```{r}
 #Add partial Response Writeup
 gridPrint(p1,p2,p3,p4, ncol = 2)
@@ -561,7 +567,7 @@ gridPrint(p5,p6, ncol = 2, nrow = 2)
 
 - Our simplified GAM outperforms our full GAM, linear regression, and regularized model in predicting premature deaths.
 
-- Our simplified GAM performs equally to XGBoost but provides a more explainable modeling approach.
+- Our simplified GAM performs equally to XGBoost but provides a more interpretable modeling approach.
 
 **Limitations**
 
