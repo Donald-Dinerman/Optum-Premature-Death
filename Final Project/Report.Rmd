@@ -325,7 +325,7 @@ final_df = reliable_data %>%
   na.omit()
 
 #Train/Test set
-set.seed(1)
+set.seed(99)
 parts = createDataPartition(final_df$YPLL, p = .7, list = F) #70/30 split
 train = final_df[parts, ]
 test = final_df[-parts, ]
@@ -350,8 +350,53 @@ fin_mod = data.frame(y_actual, y_fitted) %>%
   labs(x = "Actual", y = "Predicted")
 ```
 
-```{r, include=F}
-#how to do VIP for gam
+```{r}
+#Partial Plots
+library(mgcViz)
+
+viz_gam = getViz(plot_gam_model)
+
+p1 = plot(sm(viz_gam, 1)) + l_fitLine(colour = "red") + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
+  l_points(shape = 19, size = 1, alpha = 0.05) + 
+  theme_classic() +
+  labs(x = "Inactivity", y = "s(Inactivity)")
+
+p2 = plot(sm(viz_gam, 2)) + l_fitLine(colour = "red") + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
+  l_points(shape = 19, size = 1, alpha = 0.05) + 
+  theme_classic() +
+  labs(x = "Obesity", y = "s(Obesity)")
+
+p3 = plot(sm(viz_gam, 3)) + l_fitLine(colour = "red") + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
+  l_points(shape = 19, size = 1, alpha = 0.05) + 
+  theme_classic() +
+  labs(x = "Healthy Food Access", y = "s(Healthy Food Access)")
+
+p4 = plot(sm(viz_gam, 4)) + l_fitLine(colour = "red") + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
+  l_points(shape = 19, size = 1, alpha = 0.05) + 
+  theme_classic() +
+  labs(x = "Drinking", y = "s(Drinking)")
+
+p5 = plot(sm(viz_gam, 5)) + l_fitLine(colour = "red") + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
+  l_points(shape = 19, size = 1, alpha = 0.05) + 
+  theme_classic() +
+  labs(x = "Smoking", y = "s(Smoking)")
+
+p6 = plot(sm(viz_gam, 6)) + l_fitLine(colour = "red") + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.5) +
+  l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
+  l_points(shape = 19, size = 1, alpha = 0.05) + 
+  theme_classic() +
+  labs(x = "STI", y = "s(STI)")
 ```
 
 ## Introduction
@@ -500,15 +545,15 @@ When plotting our fitted values on a holdout set of actual values for YPLL we fo
 
 ```{r}
 #Fitted vs Actual
-#Help: How to show/visualize feature importance (something with F stats?) (Partial Response Function)
 fin_mod
 ```
 
 ```{r}
-summary(plot_gam_model)
-plot(plot_gam_model)
-```
+#Add partial Response Writeup
+gridPrint(p1,p2,p3,p4, ncol = 2)
 
+gridPrint(p5,p6, ncol = 2, nrow = 2)
+```
 
 ## Discussion
 
@@ -516,7 +561,7 @@ plot(plot_gam_model)
 
 - Our simplified GAM outperforms our full GAM, linear regression, and regularized model in predicting premature deaths.
 
-- Our simplified GAM overestimates YPLL values below 7,500 years and overestimates values above 15,000 years.
+- Our simplified GAM performs equally to XGBoost but provides a more explainable modeling approach.
 
 **Limitations**
 
