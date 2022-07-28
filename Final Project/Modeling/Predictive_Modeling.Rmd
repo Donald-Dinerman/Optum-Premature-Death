@@ -272,7 +272,6 @@ ypll_hist = function(pred_value){
 ypll_hist(12310.13)
 ```
 
-
 ## Predictors
 
 ```{r, include=F}
