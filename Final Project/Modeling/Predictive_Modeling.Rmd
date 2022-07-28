@@ -639,6 +639,7 @@ lm_mod = lm(YPLL ~ std + smoke + food_per + drink_per + county_class, data = cou
 library(caret)
 library(mgcv)
 ```
+
 #XGBoost
 ```{r}
 library(xgboost)
@@ -677,7 +678,7 @@ xgb_tune$finalModel
 
 ## Model Validation
 
-```{r}
+```{r, include=F}
 #GAM Modeling
 #stratified k fold
 strat_cv_df = strat_cv(df_input = county_pred_df)
@@ -814,6 +815,8 @@ final_gam_model <- gam(YPLL ~ s(inactive_per) + s(obesity_rate) + s(food_per) + 
 
 #summary(final_gam_model)
 #plot(final_gam_model)
+
+#sum(final_df$YPLL < 12500)/length(final_df$YPLL)
 ```
 
 ```{r}
@@ -822,12 +825,12 @@ filter(final_df, County == "Allegheny")
 
 # Pennsylvania,	Allegheny	
 # county_class: Urban
-# inactive_per: 24
-# obesity_rate: 29
-# food_per: 11
-# drink_per: 23
-# smoke: 19
-# std: 520
+# inactive_per: 23.7
+# obesity_rate: 28.7
+# food_per: 10.4
+# drink_per: 22.5
+# smoke: 18.1
+# std: 518.2
 
 # YPLL: 7699.26	
 ```
