@@ -16,6 +16,7 @@ library(tidyverse)
 library(readxl)
 library(usmap)
 library(ggplot2)
+library(kableExtra)
 library(glmnet)
 library(broom)
 library(caret)
@@ -67,6 +68,7 @@ ypll_map = plot_usmap(data = state_df, values = "YPLL", color = "black") +
 ```
 
 ```{r}
+#kbl data table
 county_pred_df = reliable_data %>%
   group_by(State, County) %>%
   rename(., state = State, YPLL = 'Years of Potential Life Lost Rate') %>%
@@ -89,6 +91,17 @@ county_pred_df = reliable_data %>%
             Population) %>%
   na.omit()
 
+data_tab = county_pred_df %>%
+  ungroup() %>%
+  summarise(State = state, County, Description = county_class, YPLL, 'Obesity %' = obesity_rate, 'Excessive Drinking %' = drink_per,
+            'Smoking %' = smoke, 'STI' = std) %>%
+  dplyr::slice(c(21, 120, 199, 1000, 1950)) %>%
+  kbl() %>% 
+  kable_styling(bootstrap_options = "striped", full_width = T, position = "center")
+```
+
+```{r}
+#EDA (y, y vs x)
 ypll_histogram = ggplot(county_pred_df, aes(x = YPLL)) +
   geom_histogram(col = "black", fill = "steelblue", binwidth = 1000) +
   scale_x_continuous(label = scales::comma, breaks = seq(0,30000,5000)) +
@@ -133,6 +146,7 @@ ypll_countyclass = ggplot(county_pred_df, aes(y = YPLL, x = county_class)) +
 ```
 
 ```{r}
+#x vs x
 food_obesity = ggplot(county_pred_df, aes(y = food_per, x = obesity_rate)) +
   geom_point(alpha = 0.25) +
   geom_smooth(se = F) +
@@ -227,7 +241,6 @@ reg_cv = holdout_predictions %>%
 xgb_tuning = data.frame(nrounds = 200, max_depth = 3, eta = 0.05, gamma = 0, colsample_bytree = 0.9, min_child_weight = 1, 
                         subsample = 0.9)
 ```
-
 
 ```{r}
 #GAM Modeling
@@ -368,21 +381,21 @@ p2 = plot(sm(viz_gam, 2)) + l_fitLine(colour = "red") +
   l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
   l_points(shape = 19, size = 1, alpha = 0.05) + 
   theme_classic() +
-  labs(x = "Obesity", y = "Predicted YPLL")
+  labs(x = "Obesity", y = "")
 
 p3 = plot(sm(viz_gam, 3)) + l_fitLine(colour = "red") + 
   l_rug(mapping = aes(x=x), alpha = 0.5) +
   l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
   l_points(shape = 19, size = 1, alpha = 0.05) + 
   theme_classic() +
-  labs(x = "Lack Healthy Food Access", y = "Predicted YPLL")
+  labs(x = "Food Insecurity", y = "Predicted YPLL")
 
 p4 = plot(sm(viz_gam, 4)) + l_fitLine(colour = "red") + 
   l_rug(mapping = aes(x=x), alpha = 0.5) +
   l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
   l_points(shape = 19, size = 1, alpha = 0.05) + 
   theme_classic() +
-  labs(x = "Drinking", y = "Predicted YPLL")
+  labs(x = "Drinking", y = "")
 
 p5 = plot(sm(viz_gam, 5)) + l_fitLine(colour = "red") + 
   l_rug(mapping = aes(x=x), alpha = 0.5) +
@@ -396,7 +409,7 @@ p6 = plot(sm(viz_gam, 6)) + l_fitLine(colour = "red") +
   l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
   l_points(shape = 19, size = 1, alpha = 0.05) + 
   theme_classic() +
-  labs(x = "STI", y = "Predicted YPLL")
+  labs(x = "STI", y = "")
 ```
 
 ## Introduction
@@ -459,9 +472,13 @@ Health behaviors are actions individuals take that affect their health. They inc
 
 - County Class: County description categorized by population (Urban $\geq$ 200k, Rural $\leq$ 50k, 200k $<$ Suburban $<$ 50k) (2020)^[Guidance Portal (2020); HUD Exchange (2019)]
 
+```{r}
+data_tab
+```
+
 ### Exploratory Data Analysis
 
-We first started by exploring the marginal distribution of our response variable, YPLL. Given that we are working with county-level data, each YPLL observation represents a single county and each binwidth represents 1,000 years. From the histogram, we noted that YPLL is positively skewed and centered at approximately 8,000 years. Given this skewed distribution, we understood that we may need to account for the potential variable(s) driving this non-normal distribution in our model to reduce bias.
+We first started by exploring the marginal distribution of our response variable, YPLL. Given that we are working with county-level data, each YPLL observation represents a single county and each binwidth represents 1,000 years. From the histogram, we noted that YPLL is positively skewed and centered at approximately 8,000 years.
 
 ```{r}
 #YPLL Histogram
@@ -541,7 +558,7 @@ gam_cv
 
 The simple GAM (7 features) outperforms the full GAM (11 features) and linear regression within intervals. Among the GAM, the simplified model's better performance is likely due to reduce model variability compared to the full model. However, the average performance of the simplified GAM and XGBoost model are nearly identical. Therefore, we can base our selection of the simple GAM over XGBoost because it has fewer parameters. With less parameters, the simple GAM leads to easier explainability compared to XGBoost. And for practical use, it is easier for users to interact with the predictive model by inputting 7 features rather than 11.
 
-When plotting our fitted values on a holdout set of actual values for YPLL we found that are simple GAM model predicts well for a majority of the data when 7,500 < YPLL < 15,000. However, once YPLL < 7,500 our model tends to overestimate these observations. And once YPLL > 15,000 our model tends to underestimate these observations This is a common phenomenon in regression where the smallest observations are overestimated and the largest observations are underestimated.
+When plotting our fitted values on a holdout set of actual values for YPLL we found that are simple GAM model predicts well for a majority (90%) of the data when YPLL < 12,500. However, once YPLL > 12,500 our model tends to underestimate these observations. This is a common phenomenon in regression where the largest observations are underestimated.
 
 ```{r}
 #Fitted vs Actual
@@ -576,7 +593,7 @@ Here is the link to the [Shiny App](https://donald-dinerman.shinyapps.io/Optum-A
 
 - The years our response and predictor variables were collected vary. This complicates drawing direct inference of health behaviors relationship with premature deaths. For prediction purposes, we believe it is valid to use variables from varying years because time is not independent across counties. Therefore, health behaviors-- such as the proportion of tobacco smokers-- shouldn't significantly vary within a couple years within the same county.
 
-- Due to anonymity constraints, we used county level health data rather than individual level data. However, data aggregated at the county level significantly underestimates variability in the data and does not give us insight into the demographic features of our predictor variables. With individual level data, we could group data by race and build models that can predict premature deaths by race using these grouped features.
+- Due to anonymity constraints, we used county level health data rather than individual level data. However, data aggregated at the county level significantly underestimates variability in the data and does not give us insight into the demographic features of our predictor variables. With individual level data, we could provide more precise insights to model premature deaths across racial groups and other demographic features.
 
 **Future Work**
 
