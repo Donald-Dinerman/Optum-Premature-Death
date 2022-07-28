@@ -493,7 +493,7 @@ plot_grid(ypll_drink, ypll_smoke,ypll_food, ypll_obesity,
           ncol = 2, labels = c('A', 'B', 'C', 'D'), label_fontface = 'bold',label_size = 11)
 ```
 
-Given that county class is our only categorical predictor, we created a violin plot overlayed on top of a boxplot to model the relationship between county types and YPLL. Interestingly, we found that the mean YPLL and YPLL variability increases as population decreases. The mean increasing could be potentially due to poorer access to high quality healthcare in more rural areas versus the city or other factors. However, the high degree of variation in the YPLL across county classes could be explained by increased variability in smaller populations. In smaller populations, outliers can more significantly impact county averages than larger populations. That being, in some rural counties the sample sizes are too small resulting in an unstable average YPLL.
+Given that county class is our only categorical predictor, we created a violin plot overlayed on top of a boxplot to model the relationship between county types and YPLL. Interestingly, we found that the median YPLL and YPLL variability increases as population decreases. The median increasing could be potentially due to poorer access to high quality healthcare in more rural areas versus the city or other factors. However, the high degree of variation in the YPLL across county classes could be explained by increased variability in smaller populations. In smaller populations, outliers can more significantly impact county averages than larger populations. That being, in some rural counties the sample sizes are too small resulting in an unstable average YPLL.
 
 ```{r}
 #YPLL vs Predictors colored by county class
