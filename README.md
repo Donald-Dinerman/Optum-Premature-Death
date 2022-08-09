@@ -5,6 +5,11 @@
 
 *See the Shiny App [here](https://donald-dinerman.shinyapps.io/Optum-App/)*.
 
+## Affiliation
+
+This project was completed in a joint data science program with 
+Optum and Carnegie Mellon University.
+
 ## Objective
 
 The objective is to predict premature deaths using county level 
