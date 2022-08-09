@@ -1,5 +1,5 @@
 
-# Premature Death Prediction Model Using Health Behavior Data
+# Premature Death Prediction Model
 
 *See the project report [here](https://donald-dinerman.github.io/Optum-Premature-Death/)*. 
 
